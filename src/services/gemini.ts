@@ -149,12 +149,26 @@ Write a brief, encouraging 2-3 sentence summary in Burmese. Be warm and supporti
 };
 
 export const validateApiKey = async (apiKey: string): Promise<boolean> => {
+  // Aggressively strip all whitespace (spaces, newlines, tabs — common paste issues on mobile)
+  const cleanKey = apiKey.replace(/\s/g, '');
+  if (!cleanKey.startsWith('AIza') || cleanKey.length < 30) {
+    console.warn('[Gemini] Key looks malformed:', cleanKey.length, 'chars, prefix:', cleanKey.slice(0, 8));
+    return false;
+  }
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const genAI = new GoogleGenerativeAI(cleanKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
     await model.generateContent('Hi');
     return true;
-  } catch {
-    return false;
+  } catch (err: any) {
+    const msg: string = err?.message || err?.toString() || '';
+    console.warn('[Gemini] validateApiKey error:', msg.slice(0, 200));
+    const isKeyError =
+      msg.includes('API_KEY_INVALID') ||
+      msg.includes('API key not valid') ||
+      msg.includes('PERMISSION_DENIED');
+    return !isKeyError; // Only block on definitive key errors
   }
 };
+
+

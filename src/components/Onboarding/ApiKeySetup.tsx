@@ -77,19 +77,24 @@ export default function ApiKeySetup() {
   const [validating, setValidating] = useState(false);
   const [error, setError] = useState('');
 
-
   const handleValidate = async () => {
-    if (!apiKey.trim()) { setError('API Key ထည့်ပါ'); return; }
+    // Strip ALL whitespace — spaces/newlines are common when copy-pasting on mobile
+    const cleanKey = apiKey.replace(/\s/g, '');
+    if (!cleanKey) { setError('API Key ထည့်ပါ'); return; }
+    if (!cleanKey.startsWith('AIza')) {
+      setError('API Key မှားနေပါ — "AIza" ဖြင့် စသင့်သည် (အလျားစစ်: ' + cleanKey.length + ' chars)');
+      return;
+    }
     setValidating(true);
     setError('');
-    const valid = await validateApiKey(apiKey.trim());
+    const valid = await validateApiKey(cleanKey);
     if (valid) {
-      saveApiKey(apiKey.trim());
+      saveApiKey(cleanKey);
       saveUserPrefs({ onboardingComplete: true });
-      dispatch({ type: 'SET_API_KEY', payload: apiKey.trim() });
+      dispatch({ type: 'SET_API_KEY', payload: cleanKey });
       dispatch({ type: 'SET_PREFS', payload: { onboardingComplete: true } });
     } else {
-      setError('API Key မှားနေပါတယ်။ ကျေးဇူးပြု၍ ထပ်စစ်ဆေးပြီး ပြန်ထည့်ပါ။');
+      setError('API Key မှားနေပါတယ်။ Google AI Studio မှ ပြန်ကူးယူပြီး ထည့်ပါ။ (Key: AIza... ဖြင့် စသည်)');
     }
     setValidating(false);
   };

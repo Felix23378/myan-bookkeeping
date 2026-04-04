@@ -80,12 +80,16 @@ export function useChat() {
 
       addMessage({ role: 'assistant', content: response.replyMessage });
     } catch (err: any) {
-      const isKeyError = err?.message?.includes('API_KEY') || err?.message?.includes('401');
+      const msg: string = err?.message || err?.toString() || '';
+      const isKeyError = msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || msg.includes('PERMISSION_DENIED');
+      const isModelError = msg.includes('not found') || msg.includes('404') || msg.includes('is not supported');
       addMessage({
         role: 'assistant',
         content: isKeyError
           ? '❌ API Key မှားနေပါတယ်။ Settings မှာ သွားပြင်ပါ။'
-          : `❌ Error: ${err?.message || 'မသိသောပြဿနာ'}`
+          : isModelError
+          ? '❌ Gemini model ကို access မရပါ။ API Key ၏ quota သို့မဟုတ် model access စစ်ဆေးပါ။'
+          : `❌ Error: ${msg || 'မသိသောပြဿနာ'}`
       });
     } finally {
       setIsLoading(false);
