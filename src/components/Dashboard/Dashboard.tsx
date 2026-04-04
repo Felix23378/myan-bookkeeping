@@ -1,0 +1,328 @@
+import React, { useState, useMemo } from 'react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { deleteTransaction } from '../../services/storage';
+import type { Transaction } from '../../services/storage';
+
+type Period = 'today' | 'week' | 'month' | 'all';
+
+function getDateRange(period: Period): { start: Date; end: Date } {
+  const now = new Date();
+  const start = new Date(now);
+  const end = new Date(now);
+
+  if (period === 'today') {
+    start.setHours(0, 0, 0, 0);
+  } else if (period === 'week') {
+    start.setDate(now.getDate() - 7);
+    start.setHours(0, 0, 0, 0);
+  } else if (period === 'month') {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  } else {
+    start.setFullYear(2000);
+  }
+
+  return { start, end };
+}
+
+function formatAmount(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(0) + 'K';
+  return n.toLocaleString();
+}
+
+const PERIOD_LABELS: Record<Period, string> = {
+  today: 'ဒီနေ့',
+  week: 'ဒီအပတ်',
+  month: 'ဒီလ',
+  all: 'အားလုံး',
+};
+
+interface SummaryCardProps {
+  label: string;
+  amount: number;
+  type: 'income' | 'expense' | 'profit';
+  icon: React.ReactNode;
+}
+
+function SummaryCard({ label, amount, type, icon }: SummaryCardProps) {
+  const colorMap = {
+    income: 'var(--income)',
+    expense: 'var(--expense)',
+    profit: amount >= 0 ? 'var(--income)' : 'var(--expense)',
+  };
+  const bgMap = {
+    income: 'var(--income-dim)',
+    expense: 'var(--expense-dim)',
+    profit: amount >= 0 ? 'var(--income-dim)' : 'var(--expense-dim)',
+  };
+  const color = colorMap[type];
+  const bg = bgMap[type];
+
+  return (
+    <div className="summary-card animate-fade-in">
+      <div className="summary-icon" style={{ background: bg, color }}>
+        {icon}
+      </div>
+      <div>
+        <p className="summary-label text-my">{label}</p>
+        <p className="summary-amount" style={{ color }}>
+          {type === 'profit' && amount >= 0 ? '+' : type === 'profit' ? '-' : ''}
+          {formatAmount(Math.abs(amount))} ကျပ်
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TransactionItem({ tx, onDelete }: { tx: Transaction; onDelete: () => void }) {
+  const isIncome = tx.type === 'income';
+  return (
+    <div className="tx-item animate-fade-in">
+      <div className="tx-type-dot" style={{ background: isIncome ? 'var(--income-dim)' : 'var(--expense-dim)', border: `1px solid ${isIncome ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+        {isIncome ? <ArrowUpRight size={14} color="var(--income)" /> : <ArrowDownRight size={14} color="var(--expense)" />}
+      </div>
+      <div className="tx-info">
+        <p className="tx-desc text-my">{tx.description}</p>
+        <p className="tx-meta text-my">{tx.category} · {tx.date}</p>
+      </div>
+      <div className="tx-right">
+        <p className="tx-amount" style={{ color: isIncome ? 'var(--income)' : 'var(--expense)' }}>
+          {isIncome ? '+' : '-'}{tx.amount.toLocaleString()}
+        </p>
+        <button className="btn-icon tx-delete" onClick={onDelete} aria-label="Delete" style={{ width: 28, height: 28 }}>
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Minimal bar chart
+function IncomeExpenseChart({ transactions }: { transactions: Transaction[] }) {
+  const grouped = useMemo(() => {
+    const map: Record<string, { income: number; expense: number }> = {};
+    for (const tx of transactions) {
+      if (!map[tx.date]) map[tx.date] = { income: 0, expense: 0 };
+      if (tx.type === 'income') map[tx.date].income += tx.amount;
+      else map[tx.date].expense += tx.amount;
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).slice(-7);
+  }, [transactions]);
+
+  if (grouped.length === 0) return null;
+
+  const maxVal = Math.max(...grouped.flatMap(([, v]) => [v.income, v.expense]), 1);
+
+  return (
+    <div className="chart-container">
+      <p className="chart-title text-my">ဝင်ငွေ / ထွက်ငွေ (နောက်ဆုံး {grouped.length} ရက်)</p>
+      <div className="chart-bars">
+        {grouped.map(([date, v]) => (
+          <div key={date} className="chart-col">
+            <div className="chart-bar-group">
+              <div className="chart-bar income-bar" style={{ height: `${(v.income / maxVal) * 80}px` }} title={`ဝင်ငွေ: ${v.income.toLocaleString()}`} />
+              <div className="chart-bar expense-bar" style={{ height: `${(v.expense / maxVal) * 80}px` }} title={`ထွက်ငွေ: ${v.expense.toLocaleString()}`} />
+            </div>
+            <span className="chart-label">{date.slice(5)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="chart-legend">
+        <span><span className="legend-dot" style={{ background: 'var(--income)' }} />ဝင်ငွေ</span>
+        <span><span className="legend-dot" style={{ background: 'var(--expense)' }} />ထွက်ငွေ</span>
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const { state, dispatch } = useApp();
+  const [period, setPeriod] = useState<Period>('today');
+
+  const filtered = useMemo(() => {
+    const { start, end } = getDateRange(period);
+    return state.transactions.filter(tx => {
+      const d = new Date(tx.date);
+      return d >= start && d <= end;
+    });
+  }, [state.transactions, period]);
+
+  const income = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const profit = income - expense;
+
+  const handleDelete = (tx: Transaction) => {
+    if (!state.user) return;
+    if (!window.confirm('ဖျက်မှာ သေချာပါသလား?')) return;
+    deleteTransaction(state.user.id, tx.id);
+    dispatch({ type: 'DELETE_TRANSACTION', payload: tx.id });
+  };
+
+  return (
+    <div className="dashboard-view">
+      {/* Period selector */}
+      <div className="period-tabs">
+        {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
+          <button
+            key={p}
+            id={`tab-period-${p}`}
+            className={`period-tab text-my ${period === p ? 'active' : ''}`}
+            onClick={() => setPeriod(p)}
+          >
+            {PERIOD_LABELS[p]}
+          </button>
+        ))}
+      </div>
+
+      {/* Summary cards */}
+      <div className="summary-cards">
+        <SummaryCard label="ဝင်ငွေ" amount={income} type="income" icon={<TrendingUp size={18} />} />
+        <SummaryCard label="ထွက်ငွေ" amount={expense} type="expense" icon={<TrendingDown size={18} />} />
+        <SummaryCard label={profit >= 0 ? 'အမြတ်' : 'အရှုံး'} amount={profit} type="profit" icon={<Minus size={18} />} />
+      </div>
+
+      {/* Chart */}
+      {filtered.length > 0 && <IncomeExpenseChart transactions={filtered} />}
+
+      {/* Transaction list */}
+      <div className="tx-section">
+        <div className="section-header">
+          <h3 className="text-my" style={{ fontSize: '0.9375rem' }}>မှတ်တမ်းများ</h3>
+          <span className="badge badge-neutral">{filtered.length}</span>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="empty-state">
+            <Calendar size={40} color="var(--text-disabled)" />
+            <p className="text-my" style={{ color: 'var(--text-muted)', marginTop: 12 }}>
+              {period === 'today' ? 'ဒီနေ့ မှတ်တမ်း မရှိသေးပါ' : 'ဤကာလတွင် မှတ်တမ်း မရှိပါ'}
+            </p>
+            <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: 4 }}>Chat မှာ ရောင်းတာ/ဝယ်တာ ပြောပါ</p>
+          </div>
+        ) : (
+          <div className="tx-list">
+            {[...filtered].reverse().map(tx => (
+              <TransactionItem key={tx.id} tx={tx} onDelete={() => handleDelete(tx)} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        .dashboard-view {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-4);
+          padding: var(--space-4);
+          padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+          overflow-y: auto;
+          height: 100%;
+        }
+        .period-tabs {
+          display: flex;
+          gap: 6px;
+          background: var(--bg-secondary);
+          padding: 4px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border);
+        }
+        .period-tab {
+          flex: 1;
+          padding: 7px 4px;
+          border-radius: var(--radius-sm);
+          font-size: 0.8125rem;
+          font-weight: 500;
+          background: transparent;
+          color: var(--text-muted);
+          border: none;
+          cursor: pointer;
+          transition: all var(--transition);
+        }
+        .period-tab.active { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+        .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+        .summary-cards > :last-child { grid-column: 1 / -1; }
+        .summary-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: var(--space-4);
+          display: flex;
+          align-items: center;
+          gap: var(--space-3);
+        }
+        .summary-icon {
+          width: 40px; height: 40px;
+          border-radius: var(--radius-md);
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .summary-label { font-size: 0.8125rem; color: var(--text-muted); margin: 0; }
+        .summary-amount { font-size: 1.125rem; font-weight: 700; margin: 2px 0 0; font-family: var(--font-burmese); }
+        .chart-container {
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: var(--space-4);
+        }
+        .chart-title { font-size: 0.8125rem; color: var(--text-muted); margin-bottom: var(--space-3); }
+        .chart-bars {
+          display: flex;
+          align-items: flex-end;
+          gap: 8px;
+          height: 96px;
+          padding-bottom: 4px;
+        }
+        .chart-col {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          height: 100%;
+          justify-content: flex-end;
+        }
+        .chart-bar-group {
+          display: flex;
+          gap: 2px;
+          align-items: flex-end;
+          width: 100%;
+          justify-content: center;
+        }
+        .chart-bar {
+          width: 8px;
+          border-radius: 3px 3px 0 0;
+          min-height: 2px;
+          transition: height 0.5s ease;
+        }
+        .income-bar { background: var(--income); }
+        .expense-bar { background: var(--expense); }
+        .chart-label { font-size: 0.6rem; color: var(--text-disabled); text-align: center; white-space: nowrap; }
+        .chart-legend { display: flex; gap: var(--space-4); margin-top: var(--space-3); font-size: 0.75rem; color: var(--text-muted); }
+        .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+        .tx-section { display: flex; flex-direction: column; gap: var(--space-3); }
+        .section-header { display: flex; align-items: center; justify-content: space-between; }
+        .tx-list { display: flex; flex-direction: column; gap: 6px; }
+        .tx-item {
+          display: flex;
+          align-items: center;
+          gap: var(--space-3);
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          padding: var(--space-3);
+        }
+        .tx-type-dot { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .tx-info { flex: 1; min-width: 0; }
+        .tx-desc { font-size: 0.9rem; font-weight: 500; margin: 0; color: var(--text-primary); }
+        .tx-meta { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 0; }
+        .tx-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .tx-amount { font-size: 0.9rem; font-weight: 600; font-family: var(--font-burmese); white-space: nowrap; }
+        .tx-delete { color: var(--text-disabled); border-radius: 6px; }
+        .tx-delete:hover { color: var(--expense); background: var(--expense-dim); }
+        .empty-state { display: flex; flex-direction: column; align-items: center; padding: var(--space-10) var(--space-4); }
+      `}</style>
+    </div>
+  );
+}
