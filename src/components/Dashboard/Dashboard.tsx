@@ -288,7 +288,8 @@ export default function Dashboard() {
           gap: var(--space-4);
           padding: var(--space-4);
           overflow-y: auto;
-          height: 100%;
+          flex: 1;
+          min-height: 0;
         }
         .period-tabs {
           display: flex;

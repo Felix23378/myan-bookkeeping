@@ -362,8 +362,8 @@ input, textarea, select {
 .app-content {
   flex: 1;
   min-height: 0;
-  height: 100%; /* Rigid height constraint for inner views to inherit */
-  overflow: hidden; /* Give scrolling responsibility to the views */
+  display: flex;
+  flex-direction: column;
 }
 
 .bottom-nav {

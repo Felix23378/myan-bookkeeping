@@ -195,7 +195,8 @@ export default function Settings() {
           gap: var(--space-4);
           padding: var(--space-4);
           overflow-y: auto;
-          height: 100%;
+          flex: 1;
+          min-height: 0;
         }
         .settings-user {
           display: flex;
