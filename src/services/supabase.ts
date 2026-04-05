@@ -19,7 +19,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase env vars missing — check your .env file');
 }
 
+// Point to the local Express proxy for API requests in dev.
+// In production, Vercel will rewrite /api/(.*) to the express app.
+const proxyUrl = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.host}/api/supabase`
+  : 'http://localhost:3001/api/supabase';
+
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
+  proxyUrl,
   supabaseAnonKey || 'placeholder'
 );
