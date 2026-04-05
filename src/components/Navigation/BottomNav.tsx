@@ -40,6 +40,7 @@ export default function BottomNav() {
         }
         .nav-tab {
           flex: 1;
+          min-height: var(--nav-height);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -72,7 +73,12 @@ export default function BottomNav() {
           border-radius: 50%;
           background: var(--accent);
         }
-        .nav-label { font-size: 0.6875rem; font-weight: 500; line-height: 1; }
+        .nav-label {
+          font-size: 0.6875rem;
+          font-weight: 500;
+          line-height: 1;
+          display: block;
+        }
       `}</style>
     </nav>
   );

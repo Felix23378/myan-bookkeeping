@@ -78,7 +78,7 @@
   /* Layout */
   --nav-height: 64px;
   --header-height: 60px;
-  --input-bar-height: 72px;
+  --input-bar-height: 60px;
 }
 
 /* --- Reset --- */
@@ -100,7 +100,7 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100svh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -108,7 +108,7 @@ body {
 
 #root {
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
 }
@@ -118,12 +118,16 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   background: var(--bg-primary);
 }
 
 .view-content {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-4);
@@ -374,8 +378,9 @@ input, textarea, select {
 .app-shell {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100vh;
-  height: 100dvh;
+  height: 100svh;
   max-width: 480px;
   margin: 0 auto;
   position: relative;
@@ -400,13 +405,15 @@ input, textarea, select {
 
 .app-content {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .bottom-nav {
-  min-height: calc(var(--nav-height) + var(--safe-bottom));
+  height: calc(var(--nav-height) + var(--safe-bottom));
   background: rgba(22,27,34,0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -415,6 +422,7 @@ input, textarea, select {
   align-items: center;
   flex-shrink: 0;
   padding-bottom: var(--safe-bottom);
+  overflow: hidden;
 }
 
 /* --- Animations --- */

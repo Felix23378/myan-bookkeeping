@@ -122,7 +122,8 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
 
       <style>{`
         .input-bar {
-          padding: 10px 12px;
+          min-height: var(--input-bar-height);
+          padding: 6px 12px;
           background: rgba(22,27,34,0.98);
           border-top: 1px solid var(--border);
         }
@@ -133,7 +134,7 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
           background: var(--bg-input);
           border: 1px solid var(--border);
           border-radius: 24px;
-          padding: 6px 6px 6px 16px;
+          padding: 4px 4px 4px 14px;
           transition: border-color var(--transition);
         }
         .input-row:focus-within { border-color: var(--accent); }
@@ -142,16 +143,16 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
           background: transparent;
           color: var(--text-primary);
           font-size: 1rem; /* Must be 16px to prevent iOS zoom */
-          line-height: 1.6;
+          line-height: 1.45;
           resize: none;
-          max-height: 120px;
-          padding: 4px 0;
-          min-height: 28px;
+          max-height: 96px;
+          padding: 2px 0;
+          min-height: 24px;
         }
         .chat-textarea::placeholder { color: var(--text-disabled); }
-        .input-actions { display: flex; align-items: flex-end; padding-bottom: 2px; }
+        .input-actions { display: flex; align-items: center; }
         .btn-send {
-          width: 38px; height: 38px;
+          width: 34px; height: 34px;
           border-radius: 50%;
           background: var(--accent);
           color: #0D1117;
@@ -172,7 +173,7 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
           transition: all var(--transition);
         }
         .btn-mic {
-          width: 38px; height: 38px;
+          width: 34px; height: 34px;
           justify-content: center;
           background: var(--bg-card);
           color: var(--text-muted);

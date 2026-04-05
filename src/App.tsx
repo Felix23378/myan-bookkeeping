@@ -76,7 +76,17 @@ function AppHeader() {
         }}>
           <BookOpen size={16} strokeWidth={1.5} />
         </div>
-        <h1 className="text-my" style={{ fontSize: '1rem', fontWeight: 600 }}>
+        <h1
+          className="text-my"
+          style={{
+            fontSize: '1rem',
+            fontWeight: 600,
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
           {tabTitles[state.activeTab]}
         </h1>
       </div>

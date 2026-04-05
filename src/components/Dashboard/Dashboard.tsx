@@ -82,85 +82,84 @@ function TransactionItem({ tx, onDelete, onEdit }: { tx: Transaction; onDelete: 
 
   const isIncome = tx.type === 'income';
 
-  if (isEditing) {
-    return (
-      <div className="tx-item edit-mode animate-fade-in">
-        <div className="edit-form">
-          <div className="edit-row">
-            <select 
-              value={editedTx.type} 
-              onChange={e => setEditedTx({ ...editedTx, type: e.target.value as 'income' | 'expense' })}
-              className="edit-input w-full"
-            >
-              <option value="income">ဝင်ငွေ</option>
-              <option value="expense">ထွက်ငွေ</option>
-            </select>
-            <input 
-              type="date" 
-              value={editedTx.date} 
-              onChange={e => setEditedTx({ ...editedTx, date: e.target.value })}
-              className="edit-input w-full text-my"
-            />
-          </div>
-          <input 
-            type="text" 
-            value={editedTx.description} 
-            onChange={e => setEditedTx({ ...editedTx, description: e.target.value })}
-            placeholder="အကြောင်းအရာ"
-            className="edit-input w-full mt-2 text-my"
-          />
-          <div className="edit-row mt-2">
-            <input 
-              type="number" 
-              value={editedTx.amount || ''} 
-              onChange={e => setEditedTx({ ...editedTx, amount: Number(e.target.value) })}
-              placeholder="ပမာဏ"
-              className="edit-input w-full"
-            />
-            <input 
-              type="text" 
-              value={editedTx.category} 
-              onChange={e => setEditedTx({ ...editedTx, category: e.target.value })}
-              placeholder="အမျိုးအစား"
-              className="edit-input w-full text-my"
-            />
-          </div>
-          <div className="edit-actions mt-3">
-            <button className="btn-icon tx-cancel" onClick={() => setIsEditing(false)}>
-              <X size={16} />
-            </button>
-            <button className="btn-icon tx-save" onClick={() => { onEdit(editedTx); setIsEditing(false); }}>
-              <Check size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="tx-item animate-fade-in">
-      <div className="tx-type-dot" style={{ background: isIncome ? 'var(--income-dim)' : 'var(--expense-dim)', border: `1px solid ${isIncome ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-        {isIncome ? <ArrowUpRight size={14} color="var(--income)" /> : <ArrowDownRight size={14} color="var(--expense)" />}
-      </div>
-      <div className="tx-info">
-        <p className="tx-desc text-my">{tx.description}</p>
-        <p className="tx-meta text-my">{tx.category} · {tx.date}</p>
-      </div>
-      <div className="tx-right">
-        <p className="tx-amount" style={{ color: isIncome ? 'var(--income)' : 'var(--expense)' }}>
-          {isIncome ? '+' : '-'}{tx.amount.toLocaleString()}
-        </p>
-        <div className="tx-actions">
-          <button className="btn-icon tx-edit" onClick={() => setIsEditing(true)} aria-label="Edit" style={{ width: 28, height: 28 }}>
-            <Pencil size={13} />
-          </button>
-          <button className="btn-icon tx-delete" onClick={onDelete} aria-label="Delete" style={{ width: 28, height: 28 }}>
-            <Trash2 size={13} />
-          </button>
+    <>
+      <div className="tx-item animate-fade-in">
+        <div className="tx-type-dot" style={{ background: isIncome ? 'var(--income-dim)' : 'var(--expense-dim)', border: `1px solid ${isIncome ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+          {isIncome ? <ArrowUpRight size={14} color="var(--income)" /> : <ArrowDownRight size={14} color="var(--expense)" />}
+        </div>
+        <div className="tx-info">
+          <p className="tx-desc text-my">{tx.description}</p>
+          <p className="tx-meta text-my">{tx.category} · {tx.date}</p>
+        </div>
+        <div className="tx-right">
+          <p className="tx-amount" style={{ color: isIncome ? 'var(--income)' : 'var(--expense)' }}>
+            {isIncome ? '+' : '-'}{tx.amount.toLocaleString()}
+          </p>
+          <div className="tx-actions">
+            <button className="btn-icon tx-edit" onClick={() => setIsEditing(true)} aria-label="Edit" style={{ width: 28, height: 28 }}>
+              <Pencil size={13} />
+            </button>
+            <button className="btn-icon tx-delete" onClick={onDelete} aria-label="Delete" style={{ width: 28, height: 28 }}>
+              <Trash2 size={13} />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      {isEditing && (
+        <div className="edit-modal-backdrop" onClick={() => setIsEditing(false)}>
+          <div className="edit-modal card animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="edit-row">
+              <select
+                value={editedTx.type}
+                onChange={e => setEditedTx({ ...editedTx, type: e.target.value as 'income' | 'expense' })}
+                className="edit-input w-full"
+              >
+                <option value="income">ဝင်ငွေ</option>
+                <option value="expense">ထွက်ငွေ</option>
+              </select>
+              <input
+                type="date"
+                value={editedTx.date}
+                onChange={e => setEditedTx({ ...editedTx, date: e.target.value })}
+                className="edit-input w-full text-my"
+              />
+            </div>
+            <input
+              type="text"
+              value={editedTx.description}
+              onChange={e => setEditedTx({ ...editedTx, description: e.target.value })}
+              placeholder="အကြောင်းအရာ"
+              className="edit-input w-full mt-2 text-my"
+            />
+            <div className="edit-row mt-2">
+              <input
+                type="number"
+                value={editedTx.amount || ''}
+                onChange={e => setEditedTx({ ...editedTx, amount: Number(e.target.value) })}
+                placeholder="ပမာဏ"
+                className="edit-input w-full"
+              />
+              <input
+                type="text"
+                value={editedTx.category}
+                onChange={e => setEditedTx({ ...editedTx, category: e.target.value })}
+                placeholder="အမျိုးအစား"
+                className="edit-input w-full text-my"
+              />
+            </div>
+            <div className="edit-actions mt-3">
+              <button className="btn-icon tx-cancel" onClick={() => setIsEditing(false)}>
+                <X size={16} />
+              </button>
+              <button className="btn-icon tx-save" onClick={() => { onEdit(editedTx); setIsEditing(false); }}>
+                <Check size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -395,8 +394,25 @@ export default function Dashboard() {
           .tx-edit:hover { color: var(--income); background: var(--income-dim); }
           .tx-delete { color: var(--text-disabled); border-radius: 6px; }
           .tx-delete:hover { color: var(--expense); background: var(--expense-dim); }
-          .edit-mode { flex-direction: column; align-items: stretch; }
-          .edit-form { width: 100%; display: flex; flex-direction: column; }
+          .edit-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: var(--space-4);
+            z-index: 60;
+          }
+          .edit-modal {
+            width: min(100%, 440px);
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: var(--space-4);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+          }
           .edit-row { display: flex; gap: 8px; }
           .edit-input { 
             background: var(--bg-primary); 
