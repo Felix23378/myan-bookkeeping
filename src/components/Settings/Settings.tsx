@@ -99,7 +99,7 @@ export default function Settings() {
               placeholder="API Key အသစ် ထည့်ပါ..."
               value={newApiKey}
               onChange={e => { setNewApiKey(e.target.value); setKeyStatus('idle'); }}
-              style={{ fontFamily: 'monospace', fontSize: '0.875rem', paddingRight: '42px' }}
+              style={{ fontFamily: 'monospace', fontSize: '1rem', paddingRight: '42px' }}
             />
             <button onClick={() => setShowKey(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -184,7 +184,7 @@ export default function Settings() {
         <span className="text-my">ထွက်မည်</span>
       </button>
 
-      <p className="text-center text-muted" style={{ fontSize: '0.75rem', paddingBottom: 'calc(var(--space-4) + var(--safe-bottom))' }}>
+      <p className="text-center text-muted" style={{ fontSize: '0.75rem', paddingBottom: 'var(--space-4)' }}>
         Myan Bookkeeping v1.0 · Gemini API Powered
       </p>
 

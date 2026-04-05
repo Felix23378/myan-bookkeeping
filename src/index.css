@@ -147,10 +147,11 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-input, textarea {
+input, textarea, select {
   font-family: var(--font-burmese);
   border: none;
   outline: none;
+  font-size: 16px; /* Forces iOS not to zoom on focus */
 }
 
 /* --- Scrollbar --- */
@@ -360,13 +361,13 @@ input, textarea {
 
 .app-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+  height: 100%; /* Rigid height constraint for inner views to inherit */
+  overflow: hidden; /* Give scrolling responsibility to the views */
 }
 
 .bottom-nav {
-  height: var(--nav-height);
+  min-height: calc(var(--nav-height) + var(--safe-bottom));
   background: rgba(22,27,34,0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

@@ -36,7 +36,7 @@ export default function BottomNav() {
         .bottom-nav {
           display: flex;
           align-items: stretch;
-          height: var(--nav-height);
+          /* height and padding maintained in index.css */
         }
         .nav-tab {
           flex: 1;
@@ -53,7 +53,6 @@ export default function BottomNav() {
           -webkit-tap-highlight-color: transparent;
           position: relative;
           padding: 0 4px;
-          padding-bottom: calc(4px + var(--safe-bottom));
         }
         .nav-tab.active { color: var(--accent); }
         .nav-tab:not(.active):hover { color: var(--text-muted); }

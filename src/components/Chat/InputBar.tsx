@@ -123,7 +123,6 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
       <style>{`
         .input-bar {
           padding: 10px 12px;
-          padding-bottom: calc(10px + var(--safe-bottom));
           background: rgba(22,27,34,0.98);
           border-top: 1px solid var(--border);
         }
@@ -142,7 +141,7 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
           flex: 1;
           background: transparent;
           color: var(--text-primary);
-          font-size: 0.9375rem;
+          font-size: 1rem; /* Must be 16px to prevent iOS zoom */
           line-height: 1.6;
           resize: none;
           max-height: 120px;

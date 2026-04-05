@@ -287,7 +287,6 @@ export default function Dashboard() {
           flex-direction: column;
           gap: var(--space-4);
           padding: var(--space-4);
-          padding-bottom: calc(var(--space-4) + var(--safe-bottom));
           overflow-y: auto;
           height: 100%;
         }
@@ -404,7 +403,7 @@ export default function Dashboard() {
           color: var(--text-primary); 
           padding: 6px 10px; 
           border-radius: var(--radius-sm); 
-          font-size: 0.8125rem; 
+          font-size: 1rem; /* Prevent iOS zoom */
         }
         .edit-input:focus { outline: 1px solid var(--primary); border-color: transparent; }
         .edit-actions { display: flex; justify-content: flex-end; gap: 8px; }

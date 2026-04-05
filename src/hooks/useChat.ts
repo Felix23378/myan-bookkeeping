@@ -23,7 +23,7 @@ export function useChat() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'မင်္ဂလာပါ! 👋 ကျွန်တော်က သင့်ရဲ့ bookkeeping assistant ပါ။\n\nဒီနေ့ ဘာရောင်းရသလဲ၊ ဘာဝယ်ရသလဲ စကားပြောပြပါ — ကျွန်တော် မှတ်ပေးမယ်။\n\nဥပမာ: "ဒီနေ့ ဈေးတော်ဝင် ငါးသောင်း ရတယ်"',
+      content: 'မင်္ဂလာပါ! 👋 ကျွန်တော်က သင့်ရဲ့ bookkeeping assistant ပါ။\n\nဒီနေ့ ဘာရောင်းရသလဲ၊ ဘာဝယ်ရသလဲ ပြောပြပါ — ကျွန်တော် မှတ်ပေးမယ်။\n\nဥပမာ: "ဒီနေ့ ငါးသောင်း ရတယ်"',
       timestamp: new Date().toISOString(),
     }
   ]);
@@ -88,8 +88,8 @@ export function useChat() {
         content: isKeyError
           ? '❌ API Key မှားနေပါတယ်။ Settings မှာ သွားပြင်ပါ။'
           : isModelError
-          ? '❌ Gemini model ကို access မရပါ။ API Key ၏ quota သို့မဟုတ် model access စစ်ဆေးပါ။'
-          : `❌ Error: ${msg || 'မသိသောပြဿနာ'}`
+            ? '❌ Gemini model ကို access မရပါ။ API Key ၏ quota သို့မဟုတ် model access စစ်ဆေးပါ။'
+            : `❌ Error: ${msg || 'မသိသောပြဿနာ'}`
       });
     } finally {
       setIsLoading(false);
