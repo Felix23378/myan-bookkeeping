@@ -232,7 +232,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="dashboard-view">
+    <div className="view-content">
       {/* Period selector */}
       <div className="period-tabs">
         {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
@@ -282,15 +282,6 @@ export default function Dashboard() {
       </div>
 
       <style>{`
-        .dashboard-view {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-4);
-          padding: var(--space-4);
-          overflow-y: auto;
-          flex: 1;
-          min-height: 0;
-        }
         .period-tabs {
           display: flex;
           gap: 6px;

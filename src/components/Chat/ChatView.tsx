@@ -12,9 +12,9 @@ export default function ChatView() {
   }, [messages, isLoading]);
 
   return (
-    <div className="chat-view">
+    <div className="view-layout">
       {/* Messages */}
-      <div className="messages-area" id="messages-area">
+      <div className="view-content" id="messages-area" style={{ gap: 0 }}>
         <div className="chat-date-label">
           <span className="text-my">ဒီနေ့</span>
         </div>
@@ -36,25 +36,9 @@ export default function ChatView() {
       <InputBar onSend={sendMessage} disabled={isLoading} />
 
       <style>{`
-        .chat-view {
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          min-height: 0;
-          background: var(--bg-primary);
-        }
-        .messages-area {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
-          padding: 12px 8px;
-          display: flex;
-          flex-direction: column;
-          -webkit-overflow-scrolling: touch;
-        }
         .chat-date-label {
           text-align: center;
-          margin: 8px 0 12px;
+          margin: 0 0 12px 0;
         }
         .chat-date-label span {
           display: inline-block;

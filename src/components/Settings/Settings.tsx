@@ -68,7 +68,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="settings-view">
+    <div className="view-content">
       {/* User info */}
       <div className="settings-user card">
         <div className="user-avatar">
@@ -81,8 +81,8 @@ export default function Settings() {
       </div>
 
       {/* API Key */}
-      <div className="settings-section">
-        <div className="section-title">
+      <div className="view-section">
+        <div className="view-section-title">
           <Key size={15} />
           <span className="text-my">Gemini API Key</span>
         </div>
@@ -120,8 +120,8 @@ export default function Settings() {
       </div>
 
       {/* Custom Categories */}
-      <div className="settings-section">
-        <div className="section-title">
+      <div className="view-section">
+        <div className="view-section-title">
           <Tag size={15} />
           <span className="text-my">ကိုယ်ပိုင် အမျိုးအစားများ</span>
         </div>
@@ -158,8 +158,8 @@ export default function Settings() {
       </div>
 
       {/* Data */}
-      <div className="settings-section">
-        <div className="section-title">
+      <div className="view-section">
+        <div className="view-section-title">
           <Download size={15} />
           <span className="text-my">ဒေတာ သိမ်းဆည်းခြင်း</span>
         </div>
@@ -189,15 +189,6 @@ export default function Settings() {
       </p>
 
       <style>{`
-        .settings-view {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-4);
-          padding: var(--space-4);
-          overflow-y: auto;
-          flex: 1;
-          min-height: 0;
-        }
         .settings-user {
           display: flex;
           align-items: center;
@@ -216,16 +207,6 @@ export default function Settings() {
           flex-shrink: 0;
         }
         .avatar-img { width: 100%; height: 100%; object-fit: cover; }
-        .settings-section { display: flex; flex-direction: column; gap: var(--space-2); }
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: var(--space-2);
-          color: var(--text-muted);
-          font-size: 0.8125rem;
-          font-weight: 500;
-          padding: 0 4px;
-        }
         .settings-action-btn {
           display: flex;
           align-items: center;
