@@ -152,7 +152,8 @@ body {
 /* --- Burmese Text Utility --- */
 .text-my {
   font-family: var(--font-burmese);
-  line-height: inherit;
+  font-size: 1.0625rem;
+  line-height: 1.8;
 }
 
 /* --- Typography Scale --- */

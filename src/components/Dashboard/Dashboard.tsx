@@ -367,16 +367,23 @@ export default function Dashboard() {
           .chart-label { font-size: 0.6rem; color: var(--text-disabled); text-align: center; white-space: nowrap; }
           .chart-legend { display: flex; gap: var(--space-4); margin-top: var(--space-3); font-size: 0.75rem; color: var(--text-muted); }
           .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
-          .tx-list { display: flex; flex-direction: column; gap: 6px; }
+          .tx-list { 
+            display: flex; 
+            flex-direction: column; 
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+          }
           .tx-item {
             display: flex;
             align-items: center;
             gap: var(--space-3);
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: var(--space-3) var(--space-4);
+            background: transparent;
+            border-bottom: 1px solid var(--border);
+            padding: var(--space-4) var(--space-4);
           }
+          .tx-item:last-child { border-bottom: none; }
           .tx-type-dot { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
           .tx-info { flex: 1; min-width: 0; }
           .tx-desc { font-size: 0.9rem; font-weight: 500; margin: 0; color: var(--text-primary); }
