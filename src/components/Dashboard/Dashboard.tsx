@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, Pencil, X, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { deleteTransaction } from '../../services/storage';
+import { deleteTransaction, saveTransaction } from '../../services/storage';
 import type { Transaction } from '../../services/storage';
 
 type Period = 'today' | 'week' | 'month' | 'all';
@@ -76,8 +76,68 @@ function SummaryCard({ label, amount, type, icon }: SummaryCardProps) {
   );
 }
 
-function TransactionItem({ tx, onDelete }: { tx: Transaction; onDelete: () => void }) {
+function TransactionItem({ tx, onDelete, onEdit }: { tx: Transaction; onDelete: () => void; onEdit: (tx: Transaction) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTx, setEditedTx] = useState(tx);
+
   const isIncome = tx.type === 'income';
+
+  if (isEditing) {
+    return (
+      <div className="tx-item edit-mode animate-fade-in">
+        <div className="edit-form">
+          <div className="edit-row">
+            <select 
+              value={editedTx.type} 
+              onChange={e => setEditedTx({ ...editedTx, type: e.target.value as 'income' | 'expense' })}
+              className="edit-input w-full"
+            >
+              <option value="income">ဝင်ငွေ</option>
+              <option value="expense">ထွက်ငွေ</option>
+            </select>
+            <input 
+              type="date" 
+              value={editedTx.date} 
+              onChange={e => setEditedTx({ ...editedTx, date: e.target.value })}
+              className="edit-input w-full text-my"
+            />
+          </div>
+          <input 
+            type="text" 
+            value={editedTx.description} 
+            onChange={e => setEditedTx({ ...editedTx, description: e.target.value })}
+            placeholder="အကြောင်းအရာ"
+            className="edit-input w-full mt-2 text-my"
+          />
+          <div className="edit-row mt-2">
+            <input 
+              type="number" 
+              value={editedTx.amount || ''} 
+              onChange={e => setEditedTx({ ...editedTx, amount: Number(e.target.value) })}
+              placeholder="ပမာဏ"
+              className="edit-input w-full"
+            />
+            <input 
+              type="text" 
+              value={editedTx.category} 
+              onChange={e => setEditedTx({ ...editedTx, category: e.target.value })}
+              placeholder="အမျိုးအစား"
+              className="edit-input w-full text-my"
+            />
+          </div>
+          <div className="edit-actions mt-3">
+            <button className="btn-icon tx-cancel" onClick={() => setIsEditing(false)}>
+              <X size={16} />
+            </button>
+            <button className="btn-icon tx-save" onClick={() => { onEdit(editedTx); setIsEditing(false); }}>
+              <Check size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="tx-item animate-fade-in">
       <div className="tx-type-dot" style={{ background: isIncome ? 'var(--income-dim)' : 'var(--expense-dim)', border: `1px solid ${isIncome ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
@@ -91,9 +151,14 @@ function TransactionItem({ tx, onDelete }: { tx: Transaction; onDelete: () => vo
         <p className="tx-amount" style={{ color: isIncome ? 'var(--income)' : 'var(--expense)' }}>
           {isIncome ? '+' : '-'}{tx.amount.toLocaleString()}
         </p>
-        <button className="btn-icon tx-delete" onClick={onDelete} aria-label="Delete" style={{ width: 28, height: 28 }}>
-          <Trash2 size={13} />
-        </button>
+        <div className="tx-actions">
+          <button className="btn-icon tx-edit" onClick={() => setIsEditing(true)} aria-label="Edit" style={{ width: 28, height: 28 }}>
+            <Pencil size={13} />
+          </button>
+          <button className="btn-icon tx-delete" onClick={onDelete} aria-label="Delete" style={{ width: 28, height: 28 }}>
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -160,6 +225,12 @@ export default function Dashboard() {
     dispatch({ type: 'DELETE_TRANSACTION', payload: tx.id });
   };
 
+  const handleEdit = (tx: Transaction) => {
+    if (!state.user) return;
+    saveTransaction(state.user.id, tx);
+    dispatch({ type: 'UPDATE_TRANSACTION', payload: tx });
+  };
+
   return (
     <div className="dashboard-view">
       {/* Period selector */}
@@ -204,7 +275,7 @@ export default function Dashboard() {
         ) : (
           <div className="tx-list">
             {[...filtered].reverse().map(tx => (
-              <TransactionItem key={tx.id} tx={tx} onDelete={() => handleDelete(tx)} />
+              <TransactionItem key={tx.id} tx={tx} onDelete={() => handleDelete(tx)} onEdit={handleEdit} />
             ))}
           </div>
         )}
@@ -319,8 +390,29 @@ export default function Dashboard() {
         .tx-meta { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 0; }
         .tx-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
         .tx-amount { font-size: 0.9rem; font-weight: 600; font-family: var(--font-burmese); white-space: nowrap; }
+        .tx-actions { display: flex; gap: 4px; }
+        .tx-edit { color: var(--text-disabled); border-radius: 6px; }
+        .tx-edit:hover { color: var(--income); background: var(--income-dim); }
         .tx-delete { color: var(--text-disabled); border-radius: 6px; }
         .tx-delete:hover { color: var(--expense); background: var(--expense-dim); }
+        .edit-mode { flex-direction: column; align-items: stretch; }
+        .edit-form { width: 100%; display: flex; flex-direction: column; }
+        .edit-row { display: flex; gap: 8px; }
+        .edit-input { 
+          background: var(--bg-primary); 
+          border: 1px solid var(--border); 
+          color: var(--text-primary); 
+          padding: 6px 10px; 
+          border-radius: var(--radius-sm); 
+          font-size: 0.8125rem; 
+        }
+        .edit-input:focus { outline: 1px solid var(--primary); border-color: transparent; }
+        .edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .tx-save { color: var(--income); background: var(--income-dim); border-radius: 6px; width: 32px; height: 32px; }
+        .tx-cancel { color: var(--text-muted); background: var(--bg-primary); border-radius: 6px; width: 32px; height: 32px; border: 1px solid var(--border); }
+        .w-full { width: 100%; box-sizing: border-box; }
+        .mt-2 { margin-top: 8px; }
+        .mt-3 { margin-top: 12px; }
         .empty-state { display: flex; flex-direction: column; align-items: center; padding: var(--space-10) var(--space-4); }
       `}</style>
     </div>
