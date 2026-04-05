@@ -232,180 +232,183 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="view-content">
-      {/* Period selector */}
-      <div className="period-tabs">
-        {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
-          <button
-            key={p}
-            id={`tab-period-${p}`}
-            className={`period-tab text-my ${period === p ? 'active' : ''}`}
-            onClick={() => setPeriod(p)}
-          >
-            {PERIOD_LABELS[p]}
-          </button>
-        ))}
-      </div>
-
-      {/* Summary cards */}
-      <div className="summary-cards">
-        <SummaryCard label="ဝင်ငွေ" amount={income} type="income" icon={<TrendingUp size={18} />} />
-        <SummaryCard label="ထွက်ငွေ" amount={expense} type="expense" icon={<TrendingDown size={18} />} />
-        <SummaryCard label={profit >= 0 ? 'အမြတ်' : 'အရှုံး'} amount={profit} type="profit" icon={<Minus size={18} />} />
-      </div>
-
-      {/* Chart */}
-      {filtered.length > 0 && <IncomeExpenseChart transactions={filtered} />}
-
-      {/* Transaction list */}
-      <div className="tx-section">
-        <div className="section-header">
-          <h3 className="text-my" style={{ fontSize: '0.9375rem' }}>မှတ်တမ်းများ</h3>
-          <span className="badge badge-neutral">{filtered.length}</span>
+    <div className="view-layout">
+      <div className="view-content">
+        {/* Period selector */}
+        <div className="period-tabs">
+          {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
+            <button
+              key={p}
+              id={`tab-period-${p}`}
+              className={`period-tab text-my ${period === p ? 'active' : ''}`}
+              onClick={() => setPeriod(p)}
+            >
+              {PERIOD_LABELS[p]}
+            </button>
+          ))}
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="empty-state">
-            <Calendar size={40} color="var(--text-disabled)" />
-            <p className="text-my" style={{ color: 'var(--text-muted)', marginTop: 12 }}>
-              {period === 'today' ? 'ဒီနေ့ မှတ်တမ်း မရှိသေးပါ' : 'ဤကာလတွင် မှတ်တမ်း မရှိပါ'}
-            </p>
-            <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: 4 }}>Chat မှာ ရောင်းတာ/ဝယ်တာ ပြောပါ</p>
-          </div>
-        ) : (
-          <div className="tx-list">
-            {[...filtered].reverse().map(tx => (
-              <TransactionItem key={tx.id} tx={tx} onDelete={() => handleDelete(tx)} onEdit={handleEdit} />
-            ))}
-          </div>
-        )}
-      </div>
+        {/* Summary cards */}
+        <div className="summary-cards">
+          <SummaryCard label="ဝင်ငွေ" amount={income} type="income" icon={<TrendingUp size={18} />} />
+          <SummaryCard label="ထွက်ငွေ" amount={expense} type="expense" icon={<TrendingDown size={18} />} />
+          <SummaryCard label={profit >= 0 ? 'အမြတ်' : 'အရှုံး'} amount={profit} type="profit" icon={<Minus size={18} />} />
+        </div>
 
-      <style>{`
-        .period-tabs {
-          display: flex;
-          gap: 6px;
-          background: var(--bg-secondary);
-          padding: 4px;
-          border-radius: var(--radius-md);
-          border: 1px solid var(--border);
-        }
-        .period-tab {
-          flex: 1;
-          padding: 7px 4px;
-          border-radius: var(--radius-sm);
-          font-size: 0.8125rem;
-          font-weight: 500;
-          background: transparent;
-          color: var(--text-muted);
-          border: none;
-          cursor: pointer;
-          transition: all var(--transition);
-        }
-        .period-tab.active { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
-        .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
-        .summary-cards > :last-child { grid-column: 1 / -1; }
-        .summary-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
-          padding: var(--space-4);
-          display: flex;
-          align-items: center;
-          gap: var(--space-3);
-        }
-        .summary-icon {
-          width: 40px; height: 40px;
-          border-radius: var(--radius-md);
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-        .summary-label { font-size: 0.8125rem; color: var(--text-muted); margin: 0; }
-        .summary-amount { font-size: 1.125rem; font-weight: 700; margin: 2px 0 0; font-family: var(--font-burmese); }
-        .chart-container {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
-          padding: var(--space-4);
-        }
-        .chart-title { font-size: 0.8125rem; color: var(--text-muted); margin-bottom: var(--space-3); }
-        .chart-bars {
-          display: flex;
-          align-items: flex-end;
-          gap: 8px;
-          height: 96px;
-          padding-bottom: 4px;
-        }
-        .chart-col {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-          height: 100%;
-          justify-content: flex-end;
-        }
-        .chart-bar-group {
-          display: flex;
-          gap: 2px;
-          align-items: flex-end;
-          width: 100%;
-          justify-content: center;
-        }
-        .chart-bar {
-          width: 8px;
-          border-radius: 3px 3px 0 0;
-          min-height: 2px;
-          transition: height 0.5s ease;
-        }
-        .income-bar { background: var(--income); }
-        .expense-bar { background: var(--expense); }
-        .chart-label { font-size: 0.6rem; color: var(--text-disabled); text-align: center; white-space: nowrap; }
-        .chart-legend { display: flex; gap: var(--space-4); margin-top: var(--space-3); font-size: 0.75rem; color: var(--text-muted); }
-        .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
-        .tx-section { display: flex; flex-direction: column; gap: var(--space-3); }
-        .section-header { display: flex; align-items: center; justify-content: space-between; }
-        .tx-list { display: flex; flex-direction: column; gap: 6px; }
-        .tx-item {
-          display: flex;
-          align-items: center;
-          gap: var(--space-3);
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          padding: var(--space-3);
-        }
-        .tx-type-dot { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .tx-info { flex: 1; min-width: 0; }
-        .tx-desc { font-size: 0.9rem; font-weight: 500; margin: 0; color: var(--text-primary); }
-        .tx-meta { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 0; }
-        .tx-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-        .tx-amount { font-size: 0.9rem; font-weight: 600; font-family: var(--font-burmese); white-space: nowrap; }
-        .tx-actions { display: flex; gap: 4px; }
-        .tx-edit { color: var(--text-disabled); border-radius: 6px; }
-        .tx-edit:hover { color: var(--income); background: var(--income-dim); }
-        .tx-delete { color: var(--text-disabled); border-radius: 6px; }
-        .tx-delete:hover { color: var(--expense); background: var(--expense-dim); }
-        .edit-mode { flex-direction: column; align-items: stretch; }
-        .edit-form { width: 100%; display: flex; flex-direction: column; }
-        .edit-row { display: flex; gap: 8px; }
-        .edit-input { 
-          background: var(--bg-primary); 
-          border: 1px solid var(--border); 
-          color: var(--text-primary); 
-          padding: 6px 10px; 
-          border-radius: var(--radius-sm); 
-          font-size: 1rem; /* Prevent iOS zoom */
-        }
-        .edit-input:focus { outline: 1px solid var(--primary); border-color: transparent; }
-        .edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
-        .tx-save { color: var(--income); background: var(--income-dim); border-radius: 6px; width: 32px; height: 32px; }
-        .tx-cancel { color: var(--text-muted); background: var(--bg-primary); border-radius: 6px; width: 32px; height: 32px; border: 1px solid var(--border); }
-        .w-full { width: 100%; box-sizing: border-box; }
-        .mt-2 { margin-top: 8px; }
-        .mt-3 { margin-top: 12px; }
-        .empty-state { display: flex; flex-direction: column; align-items: center; padding: var(--space-10) var(--space-4); }
-      `}</style>
+        {/* Chart */}
+        {filtered.length > 0 && <IncomeExpenseChart transactions={filtered} />}
+
+        {/* Transaction list */}
+        <div className="view-section">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="view-section-title">
+              <Calendar size={15} />
+              <span className="text-my">မှတ်တမ်းများ</span>
+            </div>
+            <span className="badge badge-neutral">{filtered.length}</span>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="empty-state">
+              <Calendar size={40} color="var(--text-disabled)" />
+              <p className="text-my" style={{ color: 'var(--text-muted)', marginTop: 12 }}>
+                {period === 'today' ? 'ဒီနေ့ မှတ်တမ်း မရှိသေးပါ' : 'ဤကာလတွင် မှတ်တမ်း မရှိပါ'}
+              </p>
+              <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: 4 }}>Chat မှာ ရောင်းတာ/ဝယ်တာ ပြောပါ</p>
+            </div>
+          ) : (
+            <div className="tx-list">
+              {[...filtered].reverse().map(tx => (
+                <TransactionItem key={tx.id} tx={tx} onDelete={() => handleDelete(tx)} onEdit={handleEdit} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <style>{`
+          .period-tabs {
+            display: flex;
+            gap: 6px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+          }
+          .period-tab {
+            flex: 1;
+            padding: 7px 4px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition);
+          }
+          .period-tab.active { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+          .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+          .summary-cards > :last-child { grid-column: 1 / -1; }
+          .summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+          }
+          .summary-icon {
+            width: 40px; height: 40px;
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+          }
+          .summary-label { font-size: 0.8125rem; color: var(--text-muted); margin: 0; }
+          .summary-amount { font-size: 1.125rem; font-weight: 700; margin: 2px 0 0; font-family: var(--font-burmese); }
+          .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+          }
+          .chart-title { font-size: 0.8125rem; color: var(--text-muted); margin-bottom: var(--space-3); }
+          .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 96px;
+            padding-bottom: 4px;
+          }
+          .chart-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            height: 100%;
+            justify-content: flex-end;
+          }
+          .chart-bar-group {
+            display: flex;
+            gap: 2px;
+            align-items: flex-end;
+            width: 100%;
+            justify-content: center;
+          }
+          .chart-bar {
+            width: 8px;
+            border-radius: 3px 3px 0 0;
+            min-height: 2px;
+            transition: height 0.5s ease;
+          }
+          .income-bar { background: var(--income); }
+          .expense-bar { background: var(--expense); }
+          .chart-label { font-size: 0.6rem; color: var(--text-disabled); text-align: center; white-space: nowrap; }
+          .chart-legend { display: flex; gap: var(--space-4); margin-top: var(--space-3); font-size: 0.75rem; color: var(--text-muted); }
+          .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+          .tx-list { display: flex; flex-direction: column; gap: 6px; }
+          .tx-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-3) var(--space-4);
+          }
+          .tx-type-dot { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+          .tx-info { flex: 1; min-width: 0; }
+          .tx-desc { font-size: 0.9rem; font-weight: 500; margin: 0; color: var(--text-primary); }
+          .tx-meta { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 0; }
+          .tx-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+          .tx-amount { font-size: 0.9rem; font-weight: 600; font-family: var(--font-burmese); white-space: nowrap; }
+          .tx-actions { display: flex; gap: 4px; }
+          .tx-edit { color: var(--text-disabled); border-radius: 6px; }
+          .tx-edit:hover { color: var(--income); background: var(--income-dim); }
+          .tx-delete { color: var(--text-disabled); border-radius: 6px; }
+          .tx-delete:hover { color: var(--expense); background: var(--expense-dim); }
+          .edit-mode { flex-direction: column; align-items: stretch; }
+          .edit-form { width: 100%; display: flex; flex-direction: column; }
+          .edit-row { display: flex; gap: 8px; }
+          .edit-input { 
+            background: var(--bg-primary); 
+            border: 1px solid var(--border); 
+            color: var(--text-primary); 
+            padding: 6px 10px; 
+            border-radius: var(--radius-sm); 
+            font-size: 1rem; /* Prevent iOS zoom */
+          }
+          .edit-input:focus { outline: 1px solid var(--primary); border-color: transparent; }
+          .edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+          .tx-save { color: var(--income); background: var(--income-dim); border-radius: 6px; width: 32px; height: 32px; }
+          .tx-cancel { color: var(--text-muted); background: var(--bg-primary); border-radius: 6px; width: 32px; height: 32px; border: 1px solid var(--border); }
+          .w-full { width: 100%; box-sizing: border-box; }
+          .mt-2 { margin-top: 8px; }
+          .mt-3 { margin-top: 12px; }
+          .empty-state { display: flex; flex-direction: column; align-items: center; padding: var(--space-10) var(--space-4); }
+        `}</style>
+      </div>
     </div>
   );
 }
