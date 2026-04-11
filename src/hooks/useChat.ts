@@ -58,8 +58,8 @@ export function useChat() {
 
     try {
       const response = audioBlob
-        ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions)
-        : await parseTransactionFromText(state.apiKey, userInput, state.transactions);
+        ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions, state.prefs.currency)
+        : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency);
 
       // Save each extracted transaction
       for (const parsed of response.transactions) {
@@ -94,7 +94,7 @@ export function useChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [state.user, state.apiKey, state.isOnline, state.transactions, addMessage, dispatch]);
+  }, [state.user, state.apiKey, state.isOnline, state.transactions, state.prefs.currency, addMessage, dispatch]);
 
   return { messages, sendMessage, isLoading };
 }

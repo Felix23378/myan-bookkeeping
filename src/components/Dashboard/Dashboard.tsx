@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, Pencil, X, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { deleteTransaction, saveTransaction } from '../../services/storage';
+import { deleteTransaction, saveTransaction, CURRENCIES } from '../../services/storage';
 import type { Transaction } from '../../services/storage';
 
 type Period = 'today' | 'week' | 'month' | 'all';
@@ -44,9 +44,10 @@ interface SummaryCardProps {
   amount: number;
   type: 'income' | 'expense' | 'profit';
   icon: React.ReactNode;
+  currencyLabel: string;
 }
 
-function SummaryCard({ label, amount, type, icon }: SummaryCardProps) {
+function SummaryCard({ label, amount, type, icon, currencyLabel }: SummaryCardProps) {
   const colorMap = {
     income: 'var(--income)',
     expense: 'var(--expense)',
@@ -69,7 +70,7 @@ function SummaryCard({ label, amount, type, icon }: SummaryCardProps) {
         <p className="summary-label text-my">{label}</p>
         <p className="summary-amount" style={{ color }}>
           {type === 'profit' && amount >= 0 ? '+' : type === 'profit' ? '-' : ''}
-          {formatAmount(Math.abs(amount))} ကျပ်
+          {formatAmount(Math.abs(amount))} {currencyLabel}
         </p>
       </div>
     </div>
@@ -216,6 +217,7 @@ export default function Dashboard() {
   const income = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const expense = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const profit = income - expense;
+  const currencyLabel = CURRENCIES[state.prefs.currency]?.nameMy || 'ကျပ်';
 
   const handleDelete = (tx: Transaction) => {
     if (!state.user) return;
@@ -249,9 +251,9 @@ export default function Dashboard() {
 
         {/* Summary cards */}
         <div className="summary-cards">
-          <SummaryCard label="ဝင်ငွေ" amount={income} type="income" icon={<TrendingUp size={18} />} />
-          <SummaryCard label="ထွက်ငွေ" amount={expense} type="expense" icon={<TrendingDown size={18} />} />
-          <SummaryCard label={profit >= 0 ? 'အမြတ်' : 'အရှုံး'} amount={profit} type="profit" icon={<Minus size={18} />} />
+          <SummaryCard label="ဝင်ငွေ" amount={income} type="income" icon={<TrendingUp size={18} />} currencyLabel={currencyLabel} />
+          <SummaryCard label="ထွက်ငွေ" amount={expense} type="expense" icon={<TrendingDown size={18} />} currencyLabel={currencyLabel} />
+          <SummaryCard label={profit >= 0 ? 'အမြတ်' : 'အရှုံး'} amount={profit} type="profit" icon={<Minus size={18} />} currencyLabel={currencyLabel} />
         </div>
 
         {/* Chart */}

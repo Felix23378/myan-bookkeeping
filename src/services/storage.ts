@@ -17,10 +17,34 @@ export interface OfflineQueueItem {
   timestamp: string;
 }
 
+export type CurrencyCode = 'MMK' | 'THB' | 'USD' | 'SGD' | 'MYR' | 'CNY' | 'JPY' | 'KRW' | 'EUR' | 'GBP' | 'INR';
+
+export interface CurrencyInfo {
+  code: CurrencyCode;
+  symbol: string;
+  name: string;      // English
+  nameMy: string;    // Burmese
+}
+
+export const CURRENCIES: Record<CurrencyCode, CurrencyInfo> = {
+  MMK: { code: 'MMK', symbol: 'K',  name: 'Myanmar Kyat',      nameMy: 'ကျပ်' },
+  THB: { code: 'THB', symbol: '฿',  name: 'Thai Baht',         nameMy: 'ဘတ်' },
+  USD: { code: 'USD', symbol: '$',  name: 'US Dollar',         nameMy: 'ဒေါ်လာ' },
+  SGD: { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar',  nameMy: 'စင်ဒေါ်လာ' },
+  MYR: { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit', nameMy: 'ရင်းဂစ်' },
+  CNY: { code: 'CNY', symbol: '¥',  name: 'Chinese Yuan',      nameMy: 'ယွမ်' },
+  JPY: { code: 'JPY', symbol: '¥',  name: 'Japanese Yen',      nameMy: 'ယန်း' },
+  KRW: { code: 'KRW', symbol: '₩',  name: 'South Korean Won',  nameMy: 'ဝမ်' },
+  EUR: { code: 'EUR', symbol: '€',  name: 'Euro',              nameMy: 'ယူရို' },
+  GBP: { code: 'GBP', symbol: '£',  name: 'British Pound',     nameMy: 'ပေါင်' },
+  INR: { code: 'INR', symbol: '₹',  name: 'Indian Rupee',      nameMy: 'ရူပီး' },
+};
+
 export interface UserPrefs {
   language: 'my' | 'en';
   onboardingComplete: boolean;
   customCategories: string[];
+  currency: CurrencyCode;
 }
 
 const KEYS = {
@@ -50,6 +74,7 @@ const defaultPrefs: UserPrefs = {
   language: 'my',
   onboardingComplete: false,
   customCategories: [],
+  currency: 'MMK',
 };
 
 export const getUserPrefs = (): UserPrefs => {

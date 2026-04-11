@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   Key, Tag, Plus, X, Download, Trash2,
-  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield
+  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield, Coins
 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
-import { saveApiKey, clearAllTransactions, saveUserPrefs, exportToCSV } from '../../services/storage';
+import { saveApiKey, clearAllTransactions, saveUserPrefs, exportToCSV, CURRENCIES } from '../../services/storage';
+import type { CurrencyCode } from '../../services/storage';
 import { validateApiKey } from '../../services/gemini';
 import { useApp } from '../../context/AppContext';
 
@@ -117,6 +118,37 @@ export default function Settings() {
             >
               {validating ? <div className="spinner" /> : <><CheckCircle size={15} />အတည်ပြုမည်</>}
             </button>
+          </div>
+        </div>
+
+        {/* Currency */}
+        <div className="view-section">
+          <div className="view-section-title">
+            <Coins size={15} />
+            <span className="text-my">ငွေကြေးအမျိုးအစား</span>
+          </div>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div className="currency-select-wrapper">
+              <select
+                id="settings-currency-select"
+                className="currency-select text-my"
+                value={state.prefs.currency}
+                onChange={e => {
+                  const code = e.target.value as CurrencyCode;
+                  saveUserPrefs({ currency: code });
+                  dispatch({ type: 'SET_PREFS', payload: { currency: code } });
+                }}
+              >
+                {Object.values(CURRENCIES).map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.symbol} {c.nameMy} ({c.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-muted text-my" style={{ fontSize: '0.8125rem' }}>
+              ရွေးချယ်ထားသော ငွေကြေးဖြင့် မှတ်တမ်းတင်ပါမည်
+            </p>
           </div>
         </div>
 
@@ -248,6 +280,35 @@ export default function Settings() {
           }
           .chip-remove:hover { color: var(--expense); background: var(--expense-dim); }
           .add-category-row { display: flex; gap: var(--space-2); }
+          .currency-select-wrapper { position: relative; }
+          .currency-select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-3) var(--space-4);
+            color: var(--text-primary);
+            font-size: 1rem;
+            line-height: 1.5;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238B949E' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6l3.5 3.5L11.5 6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            transition: border-color var(--transition), box-shadow var(--transition);
+          }
+          .currency-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+            outline: none;
+          }
+          .currency-select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 8px;
+          }
         `}</style>
       </div>
     </div>
