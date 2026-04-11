@@ -16,8 +16,12 @@ export interface GeminiResponse {
 }
 
 const DEFAULT_CATEGORIES = [
-  'ရောင်းရငွေ', 'ဝန်ဆောင်မှုခ', 'အခြားဝင်ငွေ',
-  'ကုန်ပစ္စည်းဝယ်ခ', 'အငှားခ', 'ပို့ဆောင်ရေး', 'ရုံးစရိတ်', 'အစားအသောက်', 'အခြားကုန်ကျ'
+  // Income
+  'ရောင်းရငွေ', 'ဝန်ဆောင်မှုခ', 'လစာ', 'အတိုးရငွေ', 'အခြားဝင်ငွေ',
+  // Expense
+  'ကုန်ပစ္စည်းဝယ်ခ', 'အငှားခ', 'ပို့ဆောင်ရေး', 'ရုံးစရိတ်',
+  'အစားအသောက်', 'ဈေးဝယ်', 'ခရီးစရိတ်', 'ကျန်းမာရေး', 'ပညာရေး',
+  'ဖုန်း/အင်တာနက်', 'မီး/ရေ', 'အဝတ်အထည်', 'ဖျော်ဖြေရေး', 'အခြားကုန်ကျ'
 ];
 
 const MODEL = 'gemini-3.1-flash-lite-preview';
@@ -25,8 +29,9 @@ const MODEL = 'gemini-3.1-flash-lite-preview';
 // Use proxy in production (Vercel), direct in local dev
 const PROXY_URL = '/api/gemini';
 
-const SYSTEM_PROMPT = `You are a helpful Burmese bookkeeping assistant for small business owners in Myanmar.
+const SYSTEM_PROMPT = `You are a helpful Burmese bookkeeping assistant for people in Myanmar.
 Your job is to parse natural language Burmese or mixed Burmese-English messages about income and expenses.
+Users may record BOTH business and personal transactions — do NOT assume everything is business-related.
 
 IMPORTANT RULES:
 1. Extract ALL financial transactions from the user's message
@@ -37,6 +42,8 @@ IMPORTANT RULES:
 6. If type is ambiguous, ask for clarification
 7. Default date = today if not specified
 8. Available categories: ${DEFAULT_CATEGORIES.join(', ')}
+9. CRITICAL: Use the user's EXACT description for the "description" field. Do NOT invent business-sounding names or rephrase what the user said. For example, if user says "Kpay ထုတ်ခ" keep it as "Kpay ထုတ်ခ", do NOT change it to "ငွေထုတ်ဝန်ဆောင်ခ" or a business name. Keep descriptions simple and faithful to the user's words.
+10. Choose the most appropriate category from the list. If none fit well, use "အခြားဝင်ငွေ" or "အခြားကုန်ကျ".
 
 Respond ONLY with valid JSON in this exact format:
 {
@@ -44,7 +51,7 @@ Respond ONLY with valid JSON in this exact format:
     {
       "type": "income" or "expense",
       "amount": NUMBER_IN_KYAT,
-      "description": "brief description in Burmese",
+      "description": "use user's own words as-is",
       "category": "one of the available categories",
       "date": "YYYY-MM-DD",
       "confidence": "high" or "low"
@@ -156,12 +163,12 @@ export const generateDashboardSummary = async (
 
   const contents = [{
     role: 'user', parts: [{
-      text: `A small business in Myanmar has these ${periodName} statistics:
+      text: `A user in Myanmar has these ${periodName} financial statistics (may include both business and personal transactions):
 - Income: ${income.toLocaleString()} kyat
 - Expenses: ${expense.toLocaleString()} kyat
 - Net: ${profit.toLocaleString()} kyat (${profit >= 0 ? 'profit' : 'loss'})
 
-Write a brief, encouraging 2-3 sentence summary in Burmese. Be warm and supportive.`
+Write a brief, encouraging 2-3 sentence summary in Burmese. Be warm and supportive. Do not assume it is only business income/expenses.`
     }]
   }];
 
