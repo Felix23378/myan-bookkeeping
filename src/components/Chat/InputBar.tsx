@@ -124,7 +124,7 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
         .input-bar {
           min-height: var(--input-bar-height);
           padding: 6px 12px;
-          background: rgba(22,27,34,0.98);
+          background: var(--nav-bg);
           border-top: 1px solid var(--border);
         }
         .input-row {
@@ -155,7 +155,7 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
           width: 34px; height: 34px;
           border-radius: 50%;
           background: var(--accent);
-          color: #0D1117;
+          color: #FFFFFF;
           display: flex; align-items: center; justify-content: center;
           border: none; cursor: pointer;
           transition: all var(--transition);

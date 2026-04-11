@@ -110,6 +110,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Theme application
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', state.prefs.theme);
+  }, [state.prefs.theme]);
+
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       {children}

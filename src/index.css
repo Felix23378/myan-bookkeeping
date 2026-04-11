@@ -79,6 +79,72 @@
   --nav-height: 64px;
   --header-height: 60px;
   --input-bar-height: 60px;
+
+  /* Theme-aware header/nav backgrounds */
+  --header-bg: rgba(13,17,23,0.9);
+  --nav-bg: rgba(22,27,34,0.95);
+  --desktop-bg: #070B0F;
+
+  color-scheme: dark;
+}
+
+/* --- Light Theme --- */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #F6F8FA;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-input: #F0F2F5;
+  --bg-hover: #E8EBF0;
+  --bg-active: #D8DCE3;
+
+  /* Accent (slightly deeper for light bg contrast) */
+  --accent: #D97706;
+  --accent-dim: rgba(217, 119, 6, 0.1);
+  --accent-hover: #B45309;
+
+  /* Status */
+  --income: #16A34A;
+  --income-dim: rgba(22, 163, 74, 0.08);
+  --expense: #DC2626;
+  --expense-dim: rgba(220, 38, 38, 0.08);
+  --neutral: #6B7280;
+
+  /* Text */
+  --text-primary: #1F2937;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --text-disabled: #D1D5DB;
+
+  /* Borders */
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.15);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+  --shadow-accent: 0 4px 20px rgba(217, 119, 6, 0.15);
+
+  /* Theme-aware header/nav backgrounds */
+  --header-bg: rgba(255,255,255,0.9);
+  --nav-bg: rgba(255,255,255,0.95);
+  --desktop-bg: #EEF0F4;
+
+  color-scheme: light;
+}
+
+/* Light theme component overrides */
+[data-theme="light"] .alert-info { color: #1D4ED8; }
+[data-theme="light"] .alert-success { color: #15803D; }
+[data-theme="light"] .alert-error { color: #B91C1C; }
+[data-theme="light"] .alert-warning { color: #92400E; }
+[data-theme="light"] .btn-primary { color: #FFFFFF; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #D1D5DB; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
+  background-size: 200% 100%;
 }
 
 /* --- Reset --- */
@@ -106,6 +172,7 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -392,7 +459,7 @@ input, textarea, select {
 
 .app-header {
   height: var(--header-height);
-  background: rgba(13,17,23,0.9);
+  background: var(--header-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -417,7 +484,7 @@ input, textarea, select {
 
 .bottom-nav {
   height: calc(var(--nav-height) + var(--safe-bottom));
-  background: rgba(22,27,34,0.95);
+  background: var(--nav-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
@@ -471,6 +538,6 @@ input, textarea, select {
     box-shadow: var(--shadow-lg);
   }
   body {
-    background: #070B0F;
+    background: var(--desktop-bg);
   }
 }

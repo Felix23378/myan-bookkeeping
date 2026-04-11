@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Key, Tag, Plus, X, Download, Trash2,
-  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield, Coins
+  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield, Coins, Sun, Moon
 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { saveApiKey, clearAllTransactions, saveUserPrefs, exportToCSV, CURRENCIES } from '../../services/storage';
@@ -79,6 +79,40 @@ export default function Settings() {
           <div>
             <p className="font-semibold" style={{ fontSize: '0.9375rem' }}>{state.user?.email?.split('@')[0] || 'User'}</p>
             <p className="text-muted" style={{ fontSize: '0.8125rem' }}>{state.user?.email}</p>
+          </div>
+        </div>
+
+        {/* Theme Toggle */}
+        <div className="view-section">
+          <div className="view-section-title">
+            {state.prefs.theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
+            <span className="text-my">အပြင်အဆင်</span>
+          </div>
+          <div className="card">
+            <div className="theme-toggle-row">
+              <button
+                id="btn-theme-dark"
+                className={`theme-toggle-btn ${state.prefs.theme === 'dark' ? 'active' : ''}`}
+                onClick={() => {
+                  saveUserPrefs({ theme: 'dark' });
+                  dispatch({ type: 'SET_PREFS', payload: { theme: 'dark' } });
+                }}
+              >
+                <Moon size={16} />
+                <span className="text-my">Dark</span>
+              </button>
+              <button
+                id="btn-theme-light"
+                className={`theme-toggle-btn ${state.prefs.theme === 'light' ? 'active' : ''}`}
+                onClick={() => {
+                  saveUserPrefs({ theme: 'light' });
+                  dispatch({ type: 'SET_PREFS', payload: { theme: 'light' } });
+                }}
+              >
+                <Sun size={16} />
+                <span className="text-my">Light</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -308,6 +342,37 @@ export default function Settings() {
             background: var(--bg-secondary);
             color: var(--text-primary);
             padding: 8px;
+          }
+          .theme-toggle-row {
+            display: flex;
+            gap: 6px;
+            background: var(--bg-input);
+            padding: 4px;
+            border-radius: var(--radius-md);
+          }
+          .theme-toggle-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-2);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 500;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition);
+          }
+          .theme-toggle-btn.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            box-shadow: var(--shadow-sm);
+          }
+          .theme-toggle-btn:hover:not(.active) {
+            color: var(--text-secondary);
           }
         `}</style>
       </div>

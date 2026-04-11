@@ -45,6 +45,7 @@ export interface UserPrefs {
   onboardingComplete: boolean;
   customCategories: string[];
   currency: CurrencyCode;
+  theme: 'dark' | 'light';
 }
 
 const KEYS = {
@@ -75,6 +76,7 @@ const defaultPrefs: UserPrefs = {
   onboardingComplete: false,
   customCategories: [],
   currency: 'MMK',
+  theme: 'dark',
 };
 
 export const getUserPrefs = (): UserPrefs => {
