@@ -399,17 +399,20 @@ export default function Dashboard() {
             inset: 0;
             background: rgba(0,0,0,0.55);
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             justify-content: center;
             padding: var(--space-4);
+            padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--space-4));
             z-index: 60;
           }
           .edit-modal {
             width: min(100%, 440px);
+            max-height: 80vh;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 0;
-            padding: var(--space-4);
+            padding: var(--space-5);
             border-radius: var(--radius-xl);
             box-shadow: var(--shadow-lg);
           }
