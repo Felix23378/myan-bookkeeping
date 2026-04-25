@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import { getApiKey, getUserPrefs, getTransactions, type Transaction, type UserPrefs } from '../services/storage';
+import { getApiKey, getUserPrefs, getTransactions, getProducts, getStockMovements, type Transaction, type UserPrefs, type Product, type StockMovement } from '../services/storage';
 
 // ---- State ----
 interface AppState {
@@ -10,8 +10,10 @@ interface AppState {
   apiKey: string | null;
   prefs: UserPrefs;
   transactions: Transaction[];
+  products: Product[];
+  stockMovements: StockMovement[];
   isOnline: boolean;
-  activeTab: 'chat' | 'dashboard' | 'settings';
+  activeTab: 'chat' | 'dashboard' | 'inventory' | 'settings';
 }
 
 // ---- Actions ----
@@ -24,6 +26,12 @@ type AppAction =
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
   | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
   | { type: 'DELETE_TRANSACTION'; payload: string }
+  | { type: 'SET_PRODUCTS'; payload: Product[] }
+  | { type: 'ADD_PRODUCT'; payload: Product }
+  | { type: 'UPDATE_PRODUCT'; payload: Product }
+  | { type: 'DELETE_PRODUCT'; payload: string }
+  | { type: 'SET_STOCK_MOVEMENTS'; payload: StockMovement[] }
+  | { type: 'ADD_STOCK_MOVEMENT'; payload: StockMovement }
   | { type: 'SET_ONLINE'; payload: boolean }
   | { type: 'SET_TAB'; payload: AppState['activeTab'] };
 
@@ -44,6 +52,15 @@ function reducer(state: AppState, action: AppAction): AppState {
       ...state,
       transactions: state.transactions.filter(t => t.id !== action.payload)
     };
+    case 'SET_PRODUCTS': return { ...state, products: action.payload };
+    case 'ADD_PRODUCT': return { ...state, products: [...state.products, action.payload] };
+    case 'UPDATE_PRODUCT': return {
+      ...state,
+      products: state.products.map(p => p.id === action.payload.id ? action.payload : p)
+    };
+    case 'DELETE_PRODUCT': return { ...state, products: state.products.filter(p => p.id !== action.payload) };
+    case 'SET_STOCK_MOVEMENTS': return { ...state, stockMovements: action.payload };
+    case 'ADD_STOCK_MOVEMENT': return { ...state, stockMovements: [action.payload, ...state.stockMovements] };
     case 'SET_ONLINE': return { ...state, isOnline: action.payload };
     case 'SET_TAB': return { ...state, activeTab: action.payload };
     default: return state;
@@ -65,6 +82,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     apiKey: null,
     prefs: getUserPrefs(),
     transactions: [],
+    products: [],
+    stockMovements: [],
     isOnline: navigator.onLine,
     activeTab: 'chat',
   };
@@ -81,6 +100,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (user) {
         dispatch({ type: 'SET_API_KEY', payload: getApiKey() });
         dispatch({ type: 'SET_TRANSACTIONS', payload: getTransactions(user.id) });
+        dispatch({ type: 'SET_PRODUCTS', payload: getProducts(user.id) });
+        dispatch({ type: 'SET_STOCK_MOVEMENTS', payload: getStockMovements(user.id) });
       }
     });
 
@@ -92,6 +113,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (user) {
         dispatch({ type: 'SET_API_KEY', payload: getApiKey() });
         dispatch({ type: 'SET_TRANSACTIONS', payload: getTransactions(user.id) });
+        dispatch({ type: 'SET_PRODUCTS', payload: getProducts(user.id) });
+        dispatch({ type: 'SET_STOCK_MOVEMENTS', payload: getStockMovements(user.id) });
       }
     });
 

@@ -1,4 +1,4 @@
-import { CURRENCIES, type CurrencyCode } from './storage';
+import { CURRENCIES, type CurrencyCode, type Product } from './storage';
 import type { Transaction } from './storage';
 
 export interface ParsedTransaction {
@@ -12,9 +12,17 @@ export interface ParsedTransaction {
 
 export interface GeminiResponse {
   transactions: ParsedTransaction[];
+  inventoryActions: ParsedInventoryAction[];
   replyMessage: string;
   needsClarification: boolean;
 }
+
+export type ParsedInventoryAction =
+  | { kind: 'stock_in'; productName: string; qty: number; costPrice?: number; reason?: string; date: string }
+  | { kind: 'stock_out'; productName: string; qty: number; reason?: string; date: string }
+  | { kind: 'sale'; productName: string; qty: number; date: string }
+  | { kind: 'income'; amount: number; description: string; category: string; date: string; confidence: 'high' | 'low' }
+  | { kind: 'expense'; amount: number; description: string; category: string; date: string; confidence: 'high' | 'low' };
 
 const DEFAULT_CATEGORIES = [
   // Income
@@ -30,59 +38,87 @@ const MODEL = 'gemini-3.1-flash-lite-preview';
 // Use proxy in production (Vercel), direct in local dev
 const PROXY_URL = '/api/gemini';
 
-function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK'): string {
+function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK', products: Product[] = []): string {
   const cur = CURRENCIES[currencyCode];
   const currencyNote = currencyCode === 'MMK'
     ? `The user's currency is Myanmar Kyat (MMK/ကျပ်). 1 သိန်း = 100,000 ကျပ်, 1 ထောင် = 1,000, K or ကျပ် = kyat.`
     : `The user's currency is ${cur.name} (${cur.code}/${cur.nameMy}). Amounts are in ${cur.code}. Use "${cur.nameMy}" as the currency unit in replies.`;
 
+  const hasProducts = products.length > 0;
+  const productListText = hasProducts
+    ? `\nPRODUCT INVENTORY:\n${products.map(p => `- "${p.name}" (လက်ကျန်: ${p.currentQty} ${p.unitLabel}, ရောင်းဈေး: ${p.sellingPrice})`).join('\n')}`
+    : '';
+
+  const inventoryInstructions = hasProducts ? `
+3. INVENTORY COMMANDS — when user mentions a product from the list above, use inventoryActions:
+   - Restocking/buying stock: kind="stock_in", include costPrice if the user mentions a purchase price (total cost)
+   - Selling a product: kind="sale" (system auto-deducts stock and records income)
+   - Removing stock (lost/damaged): kind="stock_out"
+   - Match productName exactly to a product in the list (fuzzy match allowed)
+   - Regular income/expense NOT related to products: kind="income" or kind="expense" inside inventoryActions
+   - When using inventoryActions, set transactions to []
+` : '';
+
+  const inventoryJsonExample = hasProducts ? `
+When recording INVENTORY actions, use this format:
+{
+  "transactions": [],
+  "inventoryActions": [
+    { "kind": "stock_in", "productName": "product name", "qty": 10, "costPrice": 5000, "date": "YYYY-MM-DD" },
+    { "kind": "sale", "productName": "product name", "qty": 3, "date": "YYYY-MM-DD" },
+    { "kind": "stock_out", "productName": "product name", "qty": 1, "reason": "ပျက်စီး", "date": "YYYY-MM-DD" },
+    { "kind": "income", "amount": 10000, "description": "...", "category": "...", "date": "YYYY-MM-DD", "confidence": "high" },
+    { "kind": "expense", "amount": 5000, "description": "...", "category": "...", "date": "YYYY-MM-DD", "confidence": "high" }
+  ],
+  "replyMessage": "...",
+  "needsClarification": false
+}
+` : '';
+
   return `You are a helpful Burmese bookkeeping assistant for people in Myanmar.
-You have TWO jobs:
+You have THREE jobs:
 1. Parse and record new income/expense transactions from user messages
-2. Answer questions about the user's existing financial data (e.g. "how much did I spend this month?", "what category costs the most?", "ဒီအပတ် ဘယ်လောက်သုံးလဲ")
+2. Answer questions about the user's existing financial data
+3. Handle inventory stock movements (stock in, sales, stock out)
 
 Users may record BOTH business and personal transactions — do NOT assume everything is business-related.
 
 ${currencyNote}
+${productListText}
 
-IMPORTANT RULES FOR RECORDING TRANSACTIONS:
+IMPORTANT RULES:
 1. Extract ALL financial transactions from the user's message
 2. Burmese number words: တစ်=1, နှစ်=2, သုံး=3, လေး=4, ငါး=5, ခြောက်=6, ခုနစ်=7, ရှစ်=8, ကိုး=9, ဆယ်=10
 3. Compound numbers: ဆယ်ငါး=15, နှစ်ဆယ်=20, သုံးဆယ်=30, ငါးဆယ်=50 (all in thousands when context implies)
-4. Dates: ဒီနေ့=today, မနေ့=yesterday, နောက်တစ်နေ့=tomorrow
-5. If type is ambiguous, ask for clarification
-6. Default date = today if not specified
-7. Available categories: ${DEFAULT_CATEGORIES.join(', ')}
-8. CRITICAL: Use the user's EXACT description for the "description" field. Do NOT invent business-sounding names or rephrase what the user said.
-9. Choose the most appropriate category from the list. If none fit well, use "အခြားဝင်ငွေ" or "အခြားကုန်ကျ".
-10. The amount field must be a plain number in ${cur.code}. Do NOT convert currencies.
-
+4. Dates: ဒီနေ့=today, မနေ့=yesterday, နောက်တစ်နေ့=tomorrow. Default date = today.
+5. Available categories: ${DEFAULT_CATEGORIES.join(', ')}
+6. CRITICAL: Use the user's EXACT description. Do NOT rephrase.
+7. The amount field must be a plain number in ${cur.code}. Do NOT convert currencies.
+${inventoryInstructions}
 IMPORTANT RULES FOR ANSWERING DATA QUESTIONS:
-- You will be provided with the user's FULL transaction history as context
-- When the user asks about their data (e.g. totals, categories, comparisons, trends), analyze the provided transactions and give a clear, helpful answer in Burmese
+- Analyze provided transaction history and answer clearly in Burmese
 - Use ${cur.nameMy} as the currency unit
-- Include specific numbers and breakdowns when relevant
-- For time-based questions: ဒီနေ့=today, ဒီအပတ်=this week, ဒီလ=this month, etc.
+- For time-based questions: ဒီနေ့=today, ဒီအပတ်=this week, ဒီလ=this month
 
-Respond ONLY with valid JSON in this exact format:
+Respond ONLY with valid JSON. Default format (no inventory):
 {
   "transactions": [
     {
       "type": "income" or "expense",
       "amount": NUMBER_IN_${cur.code},
-      "description": "use user's own words as-is",
+      "description": "user's own words",
       "category": "one of the available categories",
       "date": "YYYY-MM-DD",
       "confidence": "high" or "low"
     }
   ],
-  "replyMessage": "friendly reply in Burmese using ${cur.nameMy} as currency unit",
-  "needsClarification": false or true
+  "inventoryActions": [],
+  "replyMessage": "friendly reply in Burmese",
+  "needsClarification": false
 }
-
-When the user is ASKING A QUESTION (not recording a transaction), set transactions to [] and put your analytical answer in replyMessage.
-When the user is RECORDING income/expenses, extract them into transactions and confirm in replyMessage.
-For greetings or general chat, set transactions to [] and write a helpful reply.`;
+${inventoryJsonExample}
+When ASKING A QUESTION: set transactions and inventoryActions to [], put answer in replyMessage.
+For greetings: set both to [] and write a helpful reply.`;
 }
 
 // ─── Transaction context builder ──────────────────────────────────────────────
@@ -176,7 +212,8 @@ export const parseTransactionFromText = async (
   apiKey: string,
   userMessage: string,
   existingTransactions: Transaction[] = [],
-  currencyCode: CurrencyCode = 'MMK'
+  currencyCode: CurrencyCode = 'MMK',
+  products: Product[] = []
 ): Promise<GeminiResponse> => {
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
@@ -186,8 +223,8 @@ export const parseTransactionFromText = async (
   const txContext = buildTransactionContext(existingTransactions, currencyCode);
 
   const contents = [
-    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode) }] },
-    { role: 'model', parts: [{ text: 'OK, I will parse bookkeeping messages and answer data questions. I will return JSON only.' }] },
+    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode, products) }] },
+    { role: 'model', parts: [{ text: 'OK, I will parse bookkeeping and inventory messages. I will return JSON only.' }] },
     {
       role: 'user', parts: [{
         text: `${contextNote}\n\n${txContext}\n\nUser message: "${userMessage}"\n\nReturn JSON only.`
@@ -198,7 +235,9 @@ export const parseTransactionFromText = async (
   const text = await callGemini(apiKey, contents);
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Invalid response from Gemini');
-  return JSON.parse(jsonMatch[0]) as GeminiResponse;
+  const parsed = JSON.parse(jsonMatch[0]) as GeminiResponse;
+  if (!parsed.inventoryActions) parsed.inventoryActions = [];
+  return parsed;
 };
 
 // ─── Audio parsing ────────────────────────────────────────────────────────────
@@ -207,7 +246,8 @@ export const parseTransactionFromAudio = async (
   apiKey: string,
   audioBlob: Blob,
   _existingTransactions: Transaction[] = [],
-  currencyCode: CurrencyCode = 'MMK'
+  currencyCode: CurrencyCode = 'MMK',
+  products: Product[] = []
 ): Promise<GeminiResponse> => {
   const today = new Date().toISOString().split('T')[0];
 
@@ -218,11 +258,11 @@ export const parseTransactionFromAudio = async (
   const base64Audio = btoa(binary);
 
   const contents = [
-    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode) }] },
+    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode, products) }] },
     { role: 'model', parts: [{ text: 'OK.' }] },
     {
       role: 'user', parts: [
-        { text: `Today is ${today}. The user sent a voice message in Burmese. Transcribe and extract transactions. Return JSON only.` },
+        { text: `Today is ${today}. The user sent a voice message in Burmese. Transcribe and extract transactions or inventory actions. Return JSON only.` },
         { inlineData: { mimeType: audioBlob.type || 'audio/webm', data: base64Audio } },
       ]
     },
@@ -231,7 +271,9 @@ export const parseTransactionFromAudio = async (
   const text = await callGemini(apiKey, contents);
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Invalid response from Gemini');
-  return JSON.parse(jsonMatch[0]) as GeminiResponse;
+  const parsed = JSON.parse(jsonMatch[0]) as GeminiResponse;
+  if (!parsed.inventoryActions) parsed.inventoryActions = [];
+  return parsed;
 };
 
 // ─── Dashboard summary ────────────────────────────────────────────────────────

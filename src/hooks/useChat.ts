@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { parseTransactionFromText, parseTransactionFromAudio } from '../services/gemini';
+import { processParsedAction } from '../services/records';
 import {
   saveTransaction,
   enqueueOffline,
@@ -57,11 +58,31 @@ export function useChat() {
     }
 
     try {
+      const source = audioBlob ? 'voice' : 'chat';
       const response = audioBlob
-        ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions, state.prefs.currency)
-        : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency);
+        ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions, state.prefs.currency, state.products)
+        : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency, state.products);
 
-      // Save each extracted transaction
+      // Handle inventory actions (stock movements + income/expense via product flow)
+      if (response.inventoryActions && response.inventoryActions.length > 0) {
+        let currentProducts = state.products;
+        for (const action of response.inventoryActions) {
+          const result = processParsedAction({
+            action,
+            userId: state.user.id,
+            products: currentProducts,
+            dispatch,
+            source,
+          });
+          if (result.ok) {
+            currentProducts = result.products;
+          } else {
+            addMessage({ role: 'assistant', content: result.message });
+          }
+        }
+      }
+
+      // Handle regular transactions (when no inventory actions)
       for (const parsed of response.transactions) {
         const tx: Transaction = {
           id: generateId(),
@@ -72,7 +93,7 @@ export function useChat() {
           category: parsed.category,
           date: parsed.date,
           createdAt: new Date().toISOString(),
-          source: audioBlob ? 'voice' : 'chat',
+          source,
         };
         saveTransaction(state.user.id, tx);
         dispatch({ type: 'ADD_TRANSACTION', payload: tx });
@@ -94,7 +115,7 @@ export function useChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [state.user, state.apiKey, state.isOnline, state.transactions, state.prefs.currency, addMessage, dispatch]);
+  }, [state.user, state.apiKey, state.isOnline, state.transactions, state.products, state.prefs.currency, addMessage, dispatch]);
 
   return { messages, sendMessage, isLoading };
 }

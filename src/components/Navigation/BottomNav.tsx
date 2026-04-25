@@ -1,11 +1,12 @@
 
-import { MessageCircle, BarChart2, Settings } from 'lucide-react';
+import { MessageCircle, BarChart2, Settings, Package2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const TABS = [
-  { id: 'chat' as const, icon: MessageCircle, labelMy: 'Chat', labelEn: 'Chat' },
-  { id: 'dashboard' as const, icon: BarChart2, labelMy: 'စာရင်း', labelEn: 'Report' },
-  { id: 'settings' as const, icon: Settings, labelMy: 'ဆက်တင်', labelEn: 'Settings' },
+  { id: 'chat' as const, icon: MessageCircle, labelMy: 'Chat' },
+  { id: 'dashboard' as const, icon: BarChart2, labelMy: 'စာရင်း' },
+  { id: 'inventory' as const, icon: Package2, labelMy: 'ကုန်' },
+  { id: 'settings' as const, icon: Settings, labelMy: 'ဆက်တင်' },
 ];
 
 export default function BottomNav() {

@@ -1,4 +1,28 @@
 // Local Storage Service — all data lives in the browser
+export interface Product {
+  id: string;
+  userId: string;
+  name: string;
+  unitLabel: string;
+  currentQty: number;
+  sellingPrice: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StockMovement {
+  id: string;
+  userId: string;
+  productId: string;
+  type: 'stock_in' | 'stock_out' | 'sale';
+  qty: number;
+  unitPriceSnapshot?: number;
+  note: string;
+  date: string;
+  createdAt: string;
+  source: 'chat' | 'voice' | 'manual';
+}
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -53,6 +77,8 @@ const KEYS = {
   USER_PREFS: 'mba_user_prefs',
   TRANSACTIONS: 'mba_transactions',
   OFFLINE_QUEUE: 'mba_offline_queue',
+  PRODUCTS: 'mba_products',
+  STOCK_MOVEMENTS: 'mba_stock_movements',
 };
 
 // ---- Gemini API Key ----
@@ -137,6 +163,36 @@ export const dequeueOfflineItem = (id: string): void => {
 
 export const clearOfflineQueue = (): void => {
   localStorage.removeItem(KEYS.OFFLINE_QUEUE);
+};
+
+// ---- Products ----
+export const getProducts = (userId: string): Product[] => {
+  try {
+    const raw = localStorage.getItem(`${KEYS.PRODUCTS}_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+export const saveProduct = (userId: string, product: Product): void => {
+  const existing = getProducts(userId);
+  const idx = existing.findIndex(p => p.id === product.id);
+  if (idx >= 0) existing[idx] = product;
+  else existing.push(product);
+  localStorage.setItem(`${KEYS.PRODUCTS}_${userId}`, JSON.stringify(existing));
+};
+
+// ---- Stock Movements ----
+export const getStockMovements = (userId: string): StockMovement[] => {
+  try {
+    const raw = localStorage.getItem(`${KEYS.STOCK_MOVEMENTS}_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+export const saveStockMovement = (userId: string, movement: StockMovement): void => {
+  const existing = getStockMovements(userId);
+  existing.unshift(movement);
+  localStorage.setItem(`${KEYS.STOCK_MOVEMENTS}_${userId}`, JSON.stringify(existing));
 };
 
 // ---- Export ----
