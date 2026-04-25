@@ -33,7 +33,8 @@ const DEFAULT_CATEGORIES = [
   'ဖုန်း/အင်တာနက်', 'မီး/ရေ', 'အဝတ်အထည်', 'ဖျော်ဖြေရေး', 'အခြားကုန်ကျ'
 ];
 
-const MODEL = 'gemini-3.1-flash-lite-preview';
+const MODEL_PRIMARY = 'gemini-3.1-flash-lite-preview';
+const MODEL_BACKUP  = 'gemini-3-flash-preview';
 
 // Use proxy in production (Vercel), direct in local dev
 const PROXY_URL = '/api/gemini';
@@ -184,14 +185,14 @@ ${lines.join('\n')}`;
 
 // ─── Core proxy call ─────────────────────────────────────────────────────────
 
-async function callGemini(apiKey: string, contents: object[]): Promise<string> {
+async function callGeminiWithModel(apiKey: string, model: string, contents: object[]): Promise<string> {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': apiKey,
     },
-    body: JSON.stringify({ model: MODEL, contents }),
+    body: JSON.stringify({ model, contents }),
   });
 
   const data = await res.json() as any;
@@ -204,6 +205,21 @@ async function callGemini(apiKey: string, contents: object[]): Promise<string> {
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Empty response from Gemini');
   return text.trim();
+}
+
+async function callGemini(apiKey: string, contents: object[]): Promise<string> {
+  try {
+    return await callGeminiWithModel(apiKey, MODEL_PRIMARY, contents);
+  } catch (err: any) {
+    const msg: string = err?.message || '';
+    // Fall back to backup model on overload / quota / server errors
+    const isOverload = msg.includes('503') || msg.includes('overloaded') || msg.includes('UNAVAILABLE')
+      || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429');
+    if (isOverload) {
+      return await callGeminiWithModel(apiKey, MODEL_BACKUP, contents);
+    }
+    throw err;
+  }
 }
 
 // ─── Text parsing ─────────────────────────────────────────────────────────────
