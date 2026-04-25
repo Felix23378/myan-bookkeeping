@@ -331,7 +331,7 @@ export const validateApiKey = async (apiKey: string): Promise<boolean> => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': cleanKey },
       body: JSON.stringify({
-        model: MODEL,
+        model: MODEL_PRIMARY,
         contents: [{ role: 'user', parts: [{ text: 'Hi' }] }],
       }),
     });
