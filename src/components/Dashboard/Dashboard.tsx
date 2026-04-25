@@ -1,8 +1,115 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, Pencil, X, Check } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, Pencil, X, Check, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { deleteTransaction, saveTransaction, CURRENCIES } from '../../services/storage';
 import type { Transaction } from '../../services/storage';
+
+const CATEGORIES = [
+  'ရောင်းရငွေ', 'ဝန်ဆောင်မှုခ', 'လစာ', 'အတိုးရငွေ', 'အခြားဝင်ငွေ',
+  'ကုန်ပစ္စည်းဝယ်ခ', 'အငှားခ', 'ပို့ဆောင်ရေး', 'ရုံးစရိတ်',
+  'အစားအသောက်', 'ဈေးဝယ်', 'ခရီးစရိတ်', 'ကျန်းမာရေး', 'ပညာရေး',
+  'ဖုန်း/အင်တာနက်', 'မီး/ရေ', 'အဝတ်အထည်', 'ဖျော်ဖြေရေး', 'အခြားကုန်ကျ',
+];
+
+function generateId() {
+  return `tx_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function AddTransactionModal({ onClose, onSave }: { onClose: () => void; onSave: (tx: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'source'>) => void }) {
+  const today = new Date().toISOString().split('T')[0];
+  const [type, setType] = useState<'income' | 'expense'>('income');
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('ရောင်းရငွေ');
+  const [date, setDate] = useState(today);
+  const [error, setError] = useState('');
+
+  const handleSave = () => {
+    if (!amount || Number(amount) <= 0) { setError('ပမာဏ ထည့်ပါ။'); return; }
+    if (!description.trim()) { setError('အကြောင်းအရာ ထည့်ပါ။'); return; }
+    onSave({ type, amount: Number(amount), description: description.trim(), category, date });
+    onClose();
+  };
+
+  return (
+    <div className="edit-modal-backdrop" onClick={onClose}>
+      <div className="edit-modal card animate-slide-up" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <p style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }} className="text-my">
+            မှတ်တမ်းအသစ်
+          </p>
+          <button className="btn-icon tx-cancel" onClick={onClose} style={{ width: 28, height: 28 }}><X size={15} /></button>
+        </div>
+
+        {/* Type toggle */}
+        <div className="add-type-toggle">
+          <button
+            className={`add-type-btn text-my ${type === 'income' ? 'active-income' : ''}`}
+            onClick={() => { setType('income'); setCategory('ရောင်းရငွေ'); }}
+          >
+            <ArrowUpRight size={15} /> ဝင်ငွေ
+          </button>
+          <button
+            className={`add-type-btn text-my ${type === 'expense' ? 'active-expense' : ''}`}
+            onClick={() => { setType('expense'); setCategory('ကုန်ပစ္စည်းဝယ်ခ'); }}
+          >
+            <ArrowDownRight size={15} /> ထွက်ငွေ
+          </button>
+        </div>
+
+        {/* Amount */}
+        <input
+          className="edit-input w-full mt-2"
+          type="number"
+          min="1"
+          placeholder="ပမာဏ"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          autoFocus
+        />
+
+        {/* Description */}
+        <input
+          className="edit-input w-full mt-2 text-my"
+          type="text"
+          placeholder="အကြောင်းအရာ"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+        />
+
+        {/* Category + Date row */}
+        <div className="edit-row mt-2">
+          <select
+            className="edit-input w-full text-my"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+          >
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <input
+            className="edit-input w-full"
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+          />
+        </div>
+
+        {error && <p style={{ color: 'var(--expense)', fontSize: '0.8rem', marginTop: 8 }} className="text-my">{error}</p>}
+
+        {/* Save */}
+        <button
+          className="btn btn-primary mt-3 text-my"
+          style={{ width: '100%' }}
+          onClick={handleSave}
+        >
+          <Check size={16} /> သိမ်းမည်
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type Period = 'today' | 'week' | 'month' | 'all';
 
@@ -205,6 +312,20 @@ function IncomeExpenseChart({ transactions }: { transactions: Transaction[] }) {
 export default function Dashboard() {
   const { state, dispatch } = useApp();
   const [period, setPeriod] = useState<Period>('today');
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const handleAddTransaction = (partial: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'source'>) => {
+    if (!state.user) return;
+    const tx: Transaction = {
+      ...partial,
+      id: generateId(),
+      userId: state.user.id,
+      createdAt: new Date().toISOString(),
+      source: 'manual',
+    };
+    saveTransaction(state.user.id, tx);
+    dispatch({ type: 'ADD_TRANSACTION', payload: tx });
+  };
 
   const filtered = useMemo(() => {
     const { start, end } = getDateRange(period);
@@ -266,7 +387,17 @@ export default function Dashboard() {
               <Calendar size={15} />
               <span className="text-my">မှတ်တမ်းများ</span>
             </div>
-            <span className="badge badge-neutral">{filtered.length}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="badge badge-neutral">{filtered.length}</span>
+              <button
+                className="add-tx-btn text-my"
+                onClick={() => setShowAddForm(true)}
+                title="မှတ်တမ်းအသစ်ထည့်ရန်"
+              >
+                <Plus size={15} />
+                ထည့်မည်
+              </button>
+            </div>
           </div>
 
           {filtered.length === 0 ? (
@@ -285,6 +416,13 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {showAddForm && (
+          <AddTransactionModal
+            onClose={() => setShowAddForm(false)}
+            onSave={handleAddTransaction}
+          />
+        )}
 
         <style>{`
           .period-tabs {
@@ -435,6 +573,47 @@ export default function Dashboard() {
           .mt-2 { margin-top: 8px; }
           .mt-3 { margin-top: 12px; }
           .empty-state { display: flex; flex-direction: column; align-items: center; padding: var(--space-10) var(--space-4); }
+          .add-tx-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            border: 1px solid rgba(245,158,11,0.35);
+            background: var(--accent-dim);
+            color: var(--accent);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background var(--transition), border-color var(--transition);
+          }
+          .add-tx-btn:hover { background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.55); }
+          .add-type-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            background: var(--bg-primary);
+            padding: 4px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+          }
+          .add-type-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all var(--transition);
+          }
+          .add-type-btn.active-income { background: var(--income-dim); color: var(--income); }
+          .add-type-btn.active-expense { background: var(--expense-dim); color: var(--expense); }
         `}</style>
       </div>
     </div>
