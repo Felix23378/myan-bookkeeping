@@ -1,14 +1,23 @@
 import { useState, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { parseTransactionFromText, parseTransactionFromAudio } from '../services/gemini';
-import { processParsedAction } from '../services/records';
+import { processParsedAction, fuzzyMatchProduct } from '../services/records';
 import {
   saveTransaction,
   enqueueOffline,
-  type Transaction
+  type Product,
+  type Transaction,
 } from '../services/storage';
+
 function generateId(): string {
   return `tx_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export interface PendingConfirmation {
+  product: Product;
+  qty: number;
+  date: string;
+  source: 'chat' | 'voice';
 }
 
 export interface ChatMessage {
@@ -16,6 +25,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  pendingConfirm?: PendingConfirmation;
+  confirmed?: boolean;
 }
 
 export function useChat() {
@@ -40,13 +51,47 @@ export function useChat() {
     return newMsg;
   }, []);
 
+  // Called when user taps Yes/No on a confirmation bubble
+  const confirmSale = useCallback((messageId: string, confirmed: boolean) => {
+    if (!state.user) return;
+
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, confirmed } : m
+    ));
+
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg?.pendingConfirm) return;
+
+    if (!confirmed) {
+      addMessage({ role: 'assistant', content: 'မှတ်တမ်း ပယ်ဖျက်လိုက်ပါပြီ ✗' });
+      return;
+    }
+
+    const { product, qty, date, source } = msg.pendingConfirm;
+    const result = processParsedAction({
+      action: { kind: 'sale', productName: product.name, qty, date },
+      userId: state.user.id,
+      products: state.products,
+      dispatch,
+      source,
+    });
+
+    if (result.ok) {
+      addMessage({
+        role: 'assistant',
+        content: `${product.name} ${qty} ${product.unitLabel} ရောင်းမှတ်တမ်း သိမ်းဆည်းပြီးပါပြီ ✓`,
+      });
+    } else {
+      addMessage({ role: 'assistant', content: result.message });
+    }
+  }, [messages, state.user, state.products, dispatch, addMessage]);
+
   const sendMessage = useCallback(async (userInput: string, audioBlob?: Blob) => {
     if (!state.user || !state.apiKey) return;
 
     addMessage({ role: 'user', content: audioBlob ? '🎤 ' + userInput : userInput });
     setIsLoading(true);
 
-    // Offline: queue the message
     if (!state.isOnline) {
       enqueueOffline({ id: generateId(), message: userInput, timestamp: new Date().toISOString() });
       addMessage({
@@ -63,37 +108,90 @@ export function useChat() {
         ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions, state.prefs.currency, state.products)
         : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency, state.products);
 
-      // Handle inventory actions (stock movements + income/expense via product flow)
+      // Handle inventory actions
       if (response.inventoryActions && response.inventoryActions.length > 0) {
         let currentProducts = state.products;
         for (const action of response.inventoryActions) {
-          const result = processParsedAction({
-            action,
-            userId: state.user.id,
-            products: currentProducts,
-            dispatch,
-            source,
-          });
-          if (result.ok) {
-            currentProducts = result.products;
-          } else {
-            addMessage({ role: 'assistant', content: result.message });
+
+          // Block stock_in — direct to manual
+          if (action.kind === 'stock_in') {
+            addMessage({
+              role: 'assistant',
+              content: 'ကုန်ပစ္စည်း ထပ်ဖြည့်ရန် Inventory tab မှ လုပ်ဆောင်ပါ။',
+            });
+            continue;
           }
+
+          // Sale action — fuzzy match then ask for confirmation
+          if (action.kind === 'sale') {
+            const matched = fuzzyMatchProduct(currentProducts, action.productName);
+            if (!matched) {
+              addMessage({
+                role: 'assistant',
+                content: `"${action.productName}" ကုန်ပစ္စည်း database မှာ မတွေ့ပါ။ Inventory tab မှာ ကုန်ပစ္စည်းအရင်ထည့်ပါ။`,
+              });
+              continue;
+            }
+            addMessage({
+              role: 'assistant',
+              content: `${matched.name} ${action.qty} ${matched.unitLabel} ရောင်းသည်မှန်ပါသလား?`,
+              pendingConfirm: { product: matched, qty: action.qty, date: action.date, source },
+            });
+            continue;
+          }
+
+          // Income — fuzzy match description to products
+          if (action.kind === 'income') {
+            const matched = fuzzyMatchProduct(currentProducts, action.description);
+            if (matched) {
+              const inferredQty = Math.max(1, Math.round(action.amount / matched.sellingPrice));
+              addMessage({
+                role: 'assistant',
+                content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${action.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?`,
+                pendingConfirm: { product: matched, qty: inferredQty, date: action.date, source },
+              });
+              continue;
+            }
+            // No product match — save as regular income
+            const tx: Transaction = {
+              id: generateId(), userId: state.user.id,
+              type: 'income', amount: action.amount,
+              description: action.description, category: action.category,
+              date: action.date, createdAt: new Date().toISOString(), source,
+            };
+            saveTransaction(state.user.id, tx);
+            dispatch({ type: 'ADD_TRANSACTION', payload: tx });
+            continue;
+          }
+
+          // All other actions (stock_out, expense) — process normally
+          const result = processParsedAction({
+            action, userId: state.user.id, products: currentProducts, dispatch, source,
+          });
+          if (result.ok) currentProducts = result.products;
+          else addMessage({ role: 'assistant', content: result.message });
         }
       }
 
-      // Handle regular transactions (when no inventory actions)
+      // Regular transactions (no inventory context)
       for (const parsed of response.transactions) {
+        if (parsed.type === 'income') {
+          const matched = fuzzyMatchProduct(state.products, parsed.description);
+          if (matched) {
+            const inferredQty = Math.max(1, Math.round(parsed.amount / matched.sellingPrice));
+            addMessage({
+              role: 'assistant',
+              content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${parsed.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?`,
+              pendingConfirm: { product: matched, qty: inferredQty, date: parsed.date, source },
+            });
+            continue;
+          }
+        }
         const tx: Transaction = {
-          id: generateId(),
-          userId: state.user.id,
-          type: parsed.type,
-          amount: parsed.amount,
-          description: parsed.description,
-          category: parsed.category,
-          date: parsed.date,
-          createdAt: new Date().toISOString(),
-          source,
+          id: generateId(), userId: state.user.id,
+          type: parsed.type, amount: parsed.amount,
+          description: parsed.description, category: parsed.category,
+          date: parsed.date, createdAt: new Date().toISOString(), source,
         };
         saveTransaction(state.user.id, tx);
         dispatch({ type: 'ADD_TRANSACTION', payload: tx });
@@ -117,5 +215,5 @@ export function useChat() {
     }
   }, [state.user, state.apiKey, state.isOnline, state.transactions, state.products, state.prefs.currency, addMessage, dispatch]);
 
-  return { messages, sendMessage, isLoading };
+  return { messages, sendMessage, isLoading, confirmSale };
 }

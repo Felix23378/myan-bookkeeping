@@ -181,6 +181,11 @@ export const saveProduct = (userId: string, product: Product): void => {
   localStorage.setItem(`${KEYS.PRODUCTS}_${userId}`, JSON.stringify(existing));
 };
 
+export const deleteProduct = (userId: string, productId: string): void => {
+  const existing = getProducts(userId).filter(p => p.id !== productId);
+  localStorage.setItem(`${KEYS.PRODUCTS}_${userId}`, JSON.stringify(existing));
+};
+
 // ---- Stock Movements ----
 export const getStockMovements = (userId: string): StockMovement[] => {
   try {

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowDownCircle, Package2, Plus, ShoppingCart, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownCircle, Package2, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { createManualStockMovement, createProductRecord, persistNewProduct } from '../../services/records';
+import { deleteProduct } from '../../services/storage';
 import type { Product } from '../../services/storage';
 
 type ActionType = 'stock_in' | 'stock_out' | 'sale';
@@ -105,6 +106,7 @@ function ProductCard({
   onAction,
   onConfirm,
   onCancel,
+  onDelete,
 }: {
   product: Product;
   pendingAction: PendingAction | null;
@@ -112,6 +114,7 @@ function ProductCard({
   onAction: (product: Product, type: ActionType) => void;
   onConfirm: (qty: number, cost?: number) => void;
   onCancel: () => void;
+  onDelete: (product: Product) => void;
 }) {
   const isActive = pendingAction?.productId === product.id;
   const lowStock = product.currentQty <= 3;
@@ -124,9 +127,14 @@ function ProductCard({
           <p className="inv-card-name">{product.name}</p>
           <p className="inv-card-price text-my">ရောင်းဈေး {fmt(product.sellingPrice)} ကျပ်</p>
         </div>
-        <div className={`inv-qty-badge ${lowStock ? 'inv-qty-badge--low' : ''}`}>
-          {lowStock && <AlertTriangle size={12} />}
-          <span className="text-my">{product.currentQty} {product.unitLabel}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div className={`inv-qty-badge ${lowStock ? 'inv-qty-badge--low' : ''}`}>
+            {lowStock && <AlertTriangle size={12} />}
+            <span className="text-my">{product.currentQty} {product.unitLabel}</span>
+          </div>
+          <button className="inv-delete-btn" onClick={() => onDelete(product)} title="ကုန်ပစ္စည်းဖျက်မည်">
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
 
@@ -229,6 +237,15 @@ export default function Inventory() {
     [products]
   );
 
+  const handleDelete = (product: Product) => {
+    if (!state.user) return;
+    if (!window.confirm(`"${product.name}" ကို ဖျက်မှာ သေချာပါသလား?`)) return;
+    deleteProduct(state.user.id, product.id);
+    dispatch({ type: 'DELETE_PRODUCT', payload: product.id });
+    if (pendingAction?.productId === product.id) setPendingAction(null);
+    if (feedback?.productId === product.id) setFeedback(null);
+  };
+
   const handleAction = (product: Product, type: ActionType) => {
     setFeedback(null);
     setPendingAction({ productId: product.id, type });
@@ -302,6 +319,7 @@ export default function Inventory() {
                 onAction={handleAction}
                 onConfirm={(qty, cost) => handleConfirm(product, qty, cost)}
                 onCancel={handleCancel}
+                onDelete={handleDelete}
               />
             ))}
           </div>
@@ -398,6 +416,20 @@ export default function Inventory() {
           background: var(--expense-dim);
           color: var(--expense);
         }
+        .inv-delete-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 30px;
+          height: 30px;
+          border-radius: var(--radius-sm);
+          border: none;
+          background: none;
+          color: var(--text-disabled);
+          cursor: pointer;
+          transition: color var(--transition), background var(--transition);
+        }
+        .inv-delete-btn:hover { color: var(--expense); background: var(--expense-dim); }
 
         /* Action row */
         .inv-action-row {

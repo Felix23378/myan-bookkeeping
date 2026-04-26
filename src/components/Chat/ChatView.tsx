@@ -4,7 +4,7 @@ import MessageBubble, { TypingIndicator } from './MessageBubble';
 import InputBar from './InputBar';
 
 export default function ChatView() {
-  const { messages, sendMessage, isLoading } = useChat();
+  const { messages, sendMessage, isLoading, confirmSale } = useChat();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,6 +24,9 @@ export default function ChatView() {
             key={msg.id}
             message={msg}
             isNew={i === messages.length - 1 && msg.role === 'assistant' && messages.length > 1}
+            onConfirm={msg.pendingConfirm && msg.confirmed === undefined
+              ? (confirmed) => confirmSale(msg.id, confirmed)
+              : undefined}
           />
         ))}
 

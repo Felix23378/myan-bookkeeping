@@ -29,6 +29,39 @@ export function findProductByName(products: Product[], productName: string): Pro
   return products.find(product => normalizeProductName(product.name) === normalized);
 }
 
+function charOverlapScore(a: string, b: string): number {
+  if (!a.length || !b.length) return 0;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  let overlap = 0;
+  for (const c of setA) { if (setB.has(c)) overlap++; }
+  return (2 * overlap) / (setA.size + setB.size);
+}
+
+export function fuzzyMatchProduct(products: Product[], text: string): Product | null {
+  const normText = normalizeProductName(text);
+  if (!normText || products.length === 0) return null;
+
+  let best: Product | null = null;
+  let bestScore = 0;
+
+  for (const product of products) {
+    const normName = normalizeProductName(product.name);
+    if (!normName) continue;
+
+    let score = 0;
+    if (normText.includes(normName) || normName.includes(normText)) {
+      score = 1.0;
+    } else {
+      score = charOverlapScore(normName, normText);
+    }
+
+    if (score > bestScore) { bestScore = score; best = product; }
+  }
+
+  return bestScore >= 0.55 ? best : null;
+}
+
 export function createProductRecord(userId: string, input: {
   name: string;
   unitLabel: string;

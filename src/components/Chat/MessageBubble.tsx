@@ -1,9 +1,10 @@
-import { Bot } from 'lucide-react';
+import { Bot, Check, X } from 'lucide-react';
 import type { ChatMessage } from '../../hooks/useChat';
 
 interface MessageBubbleProps {
   message: ChatMessage;
   isNew?: boolean;
+  onConfirm?: (confirmed: boolean) => void;
 }
 
 function formatTime(iso: string): string {
@@ -24,8 +25,10 @@ function renderContent(content: string) {
   });
 }
 
-export default function MessageBubble({ message, isNew = false }: MessageBubbleProps) {
+export default function MessageBubble({ message, isNew = false, onConfirm }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const hasConfirm = !!message.pendingConfirm;
+  const isResponded = message.confirmed !== undefined;
 
   return (
     <div
@@ -38,6 +41,24 @@ export default function MessageBubble({ message, isNew = false }: MessageBubbleP
       )}
       <div className={`bubble ${isUser ? 'bubble-right' : 'bubble-left'}`}>
         <p className="bubble-text text-my">{renderContent(message.content)}</p>
+
+        {hasConfirm && !isResponded && onConfirm && (
+          <div className="confirm-btns">
+            <button className="confirm-btn confirm-yes text-my" onClick={() => onConfirm(true)}>
+              <Check size={13} /> မှန်သည်
+            </button>
+            <button className="confirm-btn confirm-no text-my" onClick={() => onConfirm(false)}>
+              <X size={13} /> မဟုတ်ပါ
+            </button>
+          </div>
+        )}
+
+        {hasConfirm && isResponded && (
+          <p className="confirm-result text-my">
+            {message.confirmed ? '✓ အတည်ပြုပြီး' : '✗ ပယ်ဖျက်ပြီး'}
+          </p>
+        )}
+
         <span className="bubble-time">{formatTime(message.timestamp)}</span>
       </div>
     </div>
@@ -135,6 +156,31 @@ style.textContent = `
   @keyframes typingBounce {
     0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
     30% { transform: translateY(-6px); opacity: 1; }
+  }
+  .confirm-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .confirm-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    transition: opacity 0.15s;
+  }
+  .confirm-btn:active { opacity: 0.75; }
+  .confirm-yes { background: var(--income); color: #0D1117; }
+  .confirm-no  { background: rgba(240,246,252,0.1); color: var(--text-secondary); border: 1px solid var(--border); }
+  .confirm-result {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    opacity: 0.65;
   }
 `;
 if (typeof document !== 'undefined' && !document.getElementById('bubble-styles')) {

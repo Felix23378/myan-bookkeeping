@@ -51,13 +51,13 @@ function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK', products: Product
     : '';
 
   const inventoryInstructions = hasProducts ? `
-3. INVENTORY COMMANDS — when user mentions a product from the list above, use inventoryActions:
-   - Restocking/buying stock: kind="stock_in", include costPrice if the user mentions a purchase price (total cost)
-   - Selling a product: kind="sale" (system auto-deducts stock and records income)
-   - Removing stock (lost/damaged): kind="stock_out"
-   - Match productName exactly to a product in the list (fuzzy match allowed)
-   - Regular income/expense NOT related to products: kind="income" or kind="expense" inside inventoryActions
+3. INVENTORY COMMANDS — when user mentions selling or removing a product from the list above:
+   - Selling a product: kind="sale" (system will confirm with user before processing)
+   - Removing stock (lost/damaged/other): kind="stock_out"
+   - Regular income/expense NOT related to a product sale: kind="income" or kind="expense"
    - When using inventoryActions, set transactions to []
+   - IMPORTANT: Do NOT generate kind="stock_in". If the user mentions restocking or buying stock, reply telling them to use the Inventory tab manually (ကုန်ပစ္စည်း ထပ်ဖြည့်ရန် Inventory tab မှ လုပ်ဆောင်ပါ).
+   - IMPORTANT: Do NOT create new products via chat. Direct user to Inventory tab.
 ` : '';
 
   const inventoryJsonExample = hasProducts ? `
@@ -65,7 +65,6 @@ When recording INVENTORY actions, use this format:
 {
   "transactions": [],
   "inventoryActions": [
-    { "kind": "stock_in", "productName": "product name", "qty": 10, "costPrice": 5000, "date": "YYYY-MM-DD" },
     { "kind": "sale", "productName": "product name", "qty": 3, "date": "YYYY-MM-DD" },
     { "kind": "stock_out", "productName": "product name", "qty": 1, "reason": "ပျက်စီး", "date": "YYYY-MM-DD" },
     { "kind": "income", "amount": 10000, "description": "...", "category": "...", "date": "YYYY-MM-DD", "confidence": "high" },
