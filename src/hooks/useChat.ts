@@ -109,6 +109,10 @@ export function useChat() {
         : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency, state.products);
 
       let hasPendingConfirm = false;
+      // Track products that already triggered a confirmation in this turn,
+      // so we don't show duplicate confirmations when the AI returns the same
+      // sale in both inventoryActions and transactions.
+      const claimedProductIds = new Set<string>();
 
       // Handle inventory actions
       if (response.inventoryActions && response.inventoryActions.length > 0) {
@@ -134,11 +138,13 @@ export function useChat() {
               });
               continue;
             }
+            if (claimedProductIds.has(matched.id)) continue; // de-dup
             addMessage({
               role: 'assistant',
               content: `${matched.name} ${action.qty} ${matched.unitLabel} ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
               pendingConfirm: { product: matched, qty: action.qty, date: action.date, source },
             });
+            claimedProductIds.add(matched.id);
             hasPendingConfirm = true;
             continue;
           }
@@ -147,12 +153,14 @@ export function useChat() {
           if (action.kind === 'income') {
             const matched = fuzzyMatchProduct(currentProducts, action.description);
             if (matched) {
+              if (claimedProductIds.has(matched.id)) continue; // de-dup
               const inferredQty = Math.max(1, Math.round(action.amount / matched.sellingPrice));
               addMessage({
                 role: 'assistant',
                 content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${action.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
                 pendingConfirm: { product: matched, qty: inferredQty, date: action.date, source },
               });
+              claimedProductIds.add(matched.id);
               hasPendingConfirm = true;
               continue;
             }
@@ -182,12 +190,14 @@ export function useChat() {
         if (parsed.type === 'income') {
           const matched = fuzzyMatchProduct(state.products, parsed.description);
           if (matched) {
+            if (claimedProductIds.has(matched.id)) continue; // de-dup
             const inferredQty = Math.max(1, Math.round(parsed.amount / matched.sellingPrice));
             addMessage({
               role: 'assistant',
               content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${parsed.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
               pendingConfirm: { product: matched, qty: inferredQty, date: parsed.date, source },
             });
+            claimedProductIds.add(matched.id);
             hasPendingConfirm = true;
             continue;
           }
