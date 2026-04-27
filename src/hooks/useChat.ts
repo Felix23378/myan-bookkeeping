@@ -108,6 +108,8 @@ export function useChat() {
         ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions, state.prefs.currency, state.products)
         : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency, state.products);
 
+      let hasPendingConfirm = false;
+
       // Handle inventory actions
       if (response.inventoryActions && response.inventoryActions.length > 0) {
         let currentProducts = state.products;
@@ -134,9 +136,10 @@ export function useChat() {
             }
             addMessage({
               role: 'assistant',
-              content: `${matched.name} ${action.qty} ${matched.unitLabel} ရောင်းသည်မှန်ပါသလား?`,
+              content: `${matched.name} ${action.qty} ${matched.unitLabel} ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
               pendingConfirm: { product: matched, qty: action.qty, date: action.date, source },
             });
+            hasPendingConfirm = true;
             continue;
           }
 
@@ -147,9 +150,10 @@ export function useChat() {
               const inferredQty = Math.max(1, Math.round(action.amount / matched.sellingPrice));
               addMessage({
                 role: 'assistant',
-                content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${action.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?`,
+                content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${action.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
                 pendingConfirm: { product: matched, qty: inferredQty, date: action.date, source },
               });
+              hasPendingConfirm = true;
               continue;
             }
             // No product match — save as regular income
@@ -181,9 +185,10 @@ export function useChat() {
             const inferredQty = Math.max(1, Math.round(parsed.amount / matched.sellingPrice));
             addMessage({
               role: 'assistant',
-              content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${parsed.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?`,
+              content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${parsed.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
               pendingConfirm: { product: matched, qty: inferredQty, date: parsed.date, source },
             });
+            hasPendingConfirm = true;
             continue;
           }
         }
@@ -197,7 +202,10 @@ export function useChat() {
         dispatch({ type: 'ADD_TRANSACTION', payload: tx });
       }
 
-      addMessage({ role: 'assistant', content: response.replyMessage });
+      // Suppress AI's "already saved" message when waiting for user confirmation
+      if (!hasPendingConfirm && response.replyMessage) {
+        addMessage({ role: 'assistant', content: response.replyMessage });
+      }
     } catch (err: any) {
       const msg: string = err?.message || err?.toString() || '';
       const isKeyError = msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || msg.includes('PERMISSION_DENIED');

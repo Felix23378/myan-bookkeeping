@@ -21,6 +21,7 @@ export interface StockMovement {
   date: string;
   createdAt: string;
   source: 'chat' | 'voice' | 'manual';
+  relatedTxId?: string;
 }
 
 export interface Transaction {
@@ -197,6 +198,11 @@ export const getStockMovements = (userId: string): StockMovement[] => {
 export const saveStockMovement = (userId: string, movement: StockMovement): void => {
   const existing = getStockMovements(userId);
   existing.unshift(movement);
+  localStorage.setItem(`${KEYS.STOCK_MOVEMENTS}_${userId}`, JSON.stringify(existing));
+};
+
+export const deleteStockMovement = (userId: string, movementId: string): void => {
+  const existing = getStockMovements(userId).filter(m => m.id !== movementId);
   localStorage.setItem(`${KEYS.STOCK_MOVEMENTS}_${userId}`, JSON.stringify(existing));
 };
 

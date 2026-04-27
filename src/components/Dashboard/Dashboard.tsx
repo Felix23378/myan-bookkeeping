@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, Pencil, X, Check, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { deleteTransaction, saveTransaction, CURRENCIES } from '../../services/storage';
+import { deleteTransaction, deleteStockMovement, saveProduct, saveTransaction, CURRENCIES } from '../../services/storage';
 import type { Transaction } from '../../services/storage';
 
 const CATEGORIES = [
@@ -342,7 +342,30 @@ export default function Dashboard() {
 
   const handleDelete = (tx: Transaction) => {
     if (!state.user) return;
-    if (!window.confirm('ဖျက်မှာ သေချာပါသလား?')) return;
+
+    const linkedMovements = state.stockMovements.filter(m => m.relatedTxId === tx.id);
+    const hasStockImpact = linkedMovements.length > 0;
+
+    const msg = hasStockImpact
+      ? 'ဖျက်မှာ သေချာပါသလား? ဆက်စပ်တဲ့ stock လည်း ပြန်ပြင်ပေးမယ်။'
+      : 'ဖျက်မှာ သေချာပါသလား?';
+    if (!window.confirm(msg)) return;
+
+    // Reverse linked stock movements
+    for (const mv of linkedMovements) {
+      const product = state.products.find(p => p.id === mv.productId);
+      if (product) {
+        let restoredQty = product.currentQty;
+        if (mv.type === 'sale' || mv.type === 'stock_out') restoredQty += mv.qty;
+        else if (mv.type === 'stock_in') restoredQty -= mv.qty;
+        const updated = { ...product, currentQty: Math.max(0, restoredQty), updatedAt: new Date().toISOString() };
+        saveProduct(state.user.id, updated);
+        dispatch({ type: 'UPDATE_PRODUCT', payload: updated });
+      }
+      deleteStockMovement(state.user.id, mv.id);
+      dispatch({ type: 'DELETE_STOCK_MOVEMENT', payload: mv.id });
+    }
+
     deleteTransaction(state.user.id, tx.id);
     dispatch({ type: 'DELETE_TRANSACTION', payload: tx.id });
   };

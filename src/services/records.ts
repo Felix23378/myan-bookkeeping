@@ -94,7 +94,8 @@ function createMovement(
   date: string,
   note: string,
   source: StockMovement['source'],
-  unitPriceSnapshot?: number
+  unitPriceSnapshot?: number,
+  relatedTxId?: string
 ): StockMovement {
   return {
     id: generateId('stock'),
@@ -107,6 +108,7 @@ function createMovement(
     date,
     createdAt: new Date().toISOString(),
     source,
+    relatedTxId,
   };
 }
 
@@ -211,14 +213,16 @@ export function processParsedAction(params: {
 
   if (action.kind === 'stock_in') {
     const updatedProduct = updateProductQty(userId, product, product.currentQty + action.qty, dispatch);
-    const movement = createMovement(userId, product, 'stock_in', action.qty, action.date, action.reason || 'Chat stock in', source);
-    saveStockMovement(userId, movement);
-    dispatch({ type: 'ADD_STOCK_MOVEMENT', payload: movement });
+    let relatedTxId: string | undefined;
     if (action.costPrice) {
       const expenseTx = createExpenseTransaction(userId, product.name, product.unitLabel, action.qty, action.costPrice, action.date, source);
       saveTransaction(userId, expenseTx);
       dispatch({ type: 'ADD_TRANSACTION', payload: expenseTx });
+      relatedTxId = expenseTx.id;
     }
+    const movement = createMovement(userId, product, 'stock_in', action.qty, action.date, action.reason || 'Chat stock in', source, undefined, relatedTxId);
+    saveStockMovement(userId, movement);
+    dispatch({ type: 'ADD_STOCK_MOVEMENT', payload: movement });
     return { ok: true, products: replaceProduct(products, updatedProduct) };
   }
 
@@ -243,6 +247,11 @@ export function processParsedAction(params: {
   }
 
   const updatedProduct = updateProductQty(userId, product, product.currentQty - action.qty, dispatch);
+
+  const incomeTx = createIncomeTransaction(userId, product, action.qty, action.date, source);
+  saveTransaction(userId, incomeTx);
+  dispatch({ type: 'ADD_TRANSACTION', payload: incomeTx });
+
   const saleMovement = createMovement(
     userId,
     product,
@@ -251,14 +260,11 @@ export function processParsedAction(params: {
     action.date,
     `Sold ${action.qty} ${product.unitLabel}`,
     source,
-    product.sellingPrice
+    product.sellingPrice,
+    incomeTx.id
   );
   saveStockMovement(userId, saleMovement);
   dispatch({ type: 'ADD_STOCK_MOVEMENT', payload: saleMovement });
-
-  const incomeTx = createIncomeTransaction(userId, product, action.qty, action.date, source);
-  saveTransaction(userId, incomeTx);
-  dispatch({ type: 'ADD_TRANSACTION', payload: incomeTx });
 
   return { ok: true, products: replaceProduct(products, updatedProduct) };
 }
@@ -281,6 +287,20 @@ export function createManualStockMovement(params: {
 
   const nextQty = type === 'stock_in' ? product.currentQty + qty : product.currentQty - qty;
   updateProductQty(userId, product, nextQty, dispatch);
+
+  let relatedTxId: string | undefined;
+  if (type === 'sale') {
+    const incomeTx = createIncomeTransaction(userId, product, qty, date, 'manual');
+    saveTransaction(userId, incomeTx);
+    dispatch({ type: 'ADD_TRANSACTION', payload: incomeTx });
+    relatedTxId = incomeTx.id;
+  } else if (type === 'stock_in' && totalCost && totalCost > 0) {
+    const expenseTx = createExpenseTransaction(userId, product.name, product.unitLabel, qty, totalCost, date, 'manual');
+    saveTransaction(userId, expenseTx);
+    dispatch({ type: 'ADD_TRANSACTION', payload: expenseTx });
+    relatedTxId = expenseTx.id;
+  }
+
   const movement = createMovement(
     userId,
     product,
@@ -289,20 +309,11 @@ export function createManualStockMovement(params: {
     date,
     note,
     'manual',
-    type === 'sale' ? product.sellingPrice : undefined
+    type === 'sale' ? product.sellingPrice : undefined,
+    relatedTxId
   );
   saveStockMovement(userId, movement);
   dispatch({ type: 'ADD_STOCK_MOVEMENT', payload: movement });
-
-  if (type === 'sale') {
-    const incomeTx = createIncomeTransaction(userId, product, qty, date, 'manual');
-    saveTransaction(userId, incomeTx);
-    dispatch({ type: 'ADD_TRANSACTION', payload: incomeTx });
-  } else if (type === 'stock_in' && totalCost && totalCost > 0) {
-    const expenseTx = createExpenseTransaction(userId, product.name, product.unitLabel, qty, totalCost, date, 'manual');
-    saveTransaction(userId, expenseTx);
-    dispatch({ type: 'ADD_TRANSACTION', payload: expenseTx });
-  }
 
   return { ok: true };
 }

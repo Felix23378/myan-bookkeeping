@@ -32,6 +32,7 @@ type AppAction =
   | { type: 'DELETE_PRODUCT'; payload: string }
   | { type: 'SET_STOCK_MOVEMENTS'; payload: StockMovement[] }
   | { type: 'ADD_STOCK_MOVEMENT'; payload: StockMovement }
+  | { type: 'DELETE_STOCK_MOVEMENT'; payload: string }
   | { type: 'SET_ONLINE'; payload: boolean }
   | { type: 'SET_TAB'; payload: AppState['activeTab'] };
 
@@ -61,6 +62,7 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_PRODUCT': return { ...state, products: state.products.filter(p => p.id !== action.payload) };
     case 'SET_STOCK_MOVEMENTS': return { ...state, stockMovements: action.payload };
     case 'ADD_STOCK_MOVEMENT': return { ...state, stockMovements: [action.payload, ...state.stockMovements] };
+    case 'DELETE_STOCK_MOVEMENT': return { ...state, stockMovements: state.stockMovements.filter(m => m.id !== action.payload) };
     case 'SET_ONLINE': return { ...state, isOnline: action.payload };
     case 'SET_TAB': return { ...state, activeTab: action.payload };
     default: return state;

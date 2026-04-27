@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Key, Tag, Plus, X, Download, Trash2,
-  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield, Coins, Sun, Moon
+  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield, Coins, Sun, Moon, Send
 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { saveApiKey, clearAllTransactions, saveUserPrefs, exportToCSV, CURRENCIES } from '../../services/storage';
@@ -245,6 +245,33 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Community */}
+        <div className="view-section">
+          <div className="view-section-title">
+            <Send size={15} />
+            <span className="text-my">Community</span>
+          </div>
+          <a
+            href="https://t.me/myancontentai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card telegram-card"
+          >
+            <div className="telegram-icon">
+              <Send size={18} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p className="text-my" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                Telegram Channel သို့ ပူးပေါင်းပါ
+              </p>
+              <p className="text-my" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                @myancontentai · update အသစ်နဲ့ tip များ
+              </p>
+            </div>
+            <ChevronRight size={16} color="var(--text-muted)" />
+          </a>
+        </div>
+
         {/* Sign out */}
         <button id="btn-sign-out" className="btn btn-danger w-full" style={{ borderRadius: 'var(--radius-md)' }} onClick={handleSignOut}>
           <LogOut size={16} />
@@ -373,6 +400,29 @@ export default function Settings() {
           }
           .theme-toggle-btn:hover:not(.active) {
             color: var(--text-secondary);
+          }
+          .telegram-card {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            text-decoration: none;
+            transition: border-color var(--transition), background var(--transition);
+            cursor: pointer;
+          }
+          .telegram-card:hover {
+            border-color: rgba(34, 158, 217, 0.4);
+            background: rgba(34, 158, 217, 0.06);
+          }
+          .telegram-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(34, 158, 217, 0.15);
+            color: #229ED9;
+            flex-shrink: 0;
           }
         `}</style>
       </div>
