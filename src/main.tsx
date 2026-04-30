@@ -4,16 +4,15 @@ import './index.css'
 import App from './App.tsx'
 import { AppProvider } from './context/AppContext.tsx'
 
-// iOS Safari (and some Android browsers) mis-report 100dvh in PWA/standalone
-// mode until the user scrolls. Drive height from visualViewport instead, which
-// is always accurate on first paint.
+// iOS Safari PWA mis-reports 100dvh on first paint, causing a bottom gap.
+// window.innerHeight is correct immediately and is NOT affected by the keyboard
+// (unlike visualViewport.height which shrinks when the keyboard opens).
+// Only re-sync on orientation change, never on keyboard events.
 function syncViewportHeight() {
-  const h = window.visualViewport?.height ?? window.innerHeight;
-  document.documentElement.style.setProperty('--app-height', `${h}px`);
+  document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
 }
 syncViewportHeight();
-window.visualViewport?.addEventListener('resize', syncViewportHeight);
-window.addEventListener('resize', syncViewportHeight);
+window.addEventListener('orientationchange', () => setTimeout(syncViewportHeight, 100));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
