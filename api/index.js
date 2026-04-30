@@ -21,10 +21,26 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ── Gemini fallback model list ────────────────────────
+const GEMINI_MODEL_FALLBACKS = [
+  'gemini-3.1-flash-lite-preview',
+  'gemini-3-flash-preview',
+  'gemini-2.5-pro',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+];
+
+function isOverloadError(status, data) {
+  if (status === 503 || status === 429) return true;
+  const msg = String(data?.error?.message || data?.error || '');
+  return /503|overload|high demand|try again later|UNAVAILABLE|RESOURCE_EXHAUSTED|quota/i.test(msg);
+}
+
 // ── Gemini proxy ─────────────────────────────────────
 // Terminates the TLS connection to Google's API on behalf
 // of the frontend, keeping the user's Gemini key out of
 // browser-visible CORS preflight headers in production.
+// Automatically tries each fallback model on overload errors.
 app.post('/api/gemini', async (req, res) => {
   const apiKey = req.headers['x-api-key'];
 
@@ -32,27 +48,44 @@ app.post('/api/gemini', async (req, res) => {
     return res.status(400).json({ error: 'Missing or invalid API key' });
   }
 
-  const { model = 'gemini-3.1-flash-lite-preview', contents } = req.body;
+  const { contents } = req.body;
   if (!contents) {
     return res.status(400).json({ error: 'Missing contents' });
   }
 
-  try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents }),
-      }
-    );
+  let lastStatus = 503;
+  let lastData = null;
 
-    const data = await geminiRes.json();
-    return res.status(geminiRes.status).json(data);
-  } catch (err) {
-    console.error('[Gemini proxy error]', err);
-    return res.status(500).json({ error: err.message });
+  for (const model of GEMINI_MODEL_FALLBACKS) {
+    try {
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents }),
+        }
+      );
+
+      const data = await geminiRes.json();
+
+      if (isOverloadError(geminiRes.status, data)) {
+        console.warn(`[Gemini proxy] ${model} overloaded (${geminiRes.status}), trying next model`);
+        lastStatus = geminiRes.status;
+        lastData = data;
+        continue;
+      }
+
+      return res.status(geminiRes.status).json(data);
+    } catch (err) {
+      console.error(`[Gemini proxy] ${model} fetch error:`, err.message);
+      lastStatus = 503;
+      lastData = { error: err.message };
+    }
   }
+
+  console.error('[Gemini proxy] All fallback models exhausted');
+  return res.status(lastStatus).json(lastData);
 });
 
 // ── Supabase auth proxy ──────────────────────────────
