@@ -213,7 +213,8 @@ async function callGemini(apiKey: string, contents: object[]): Promise<string> {
     const msg: string = err?.message || '';
     // Fall back to backup model on overload / quota / server errors
     const isOverload = msg.includes('503') || msg.includes('overloaded') || msg.includes('UNAVAILABLE')
-      || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429');
+      || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')
+      || msg.includes('high demand') || msg.includes('try again later') || msg.includes('demand');
     if (isOverload) {
       return await callGeminiWithModel(apiKey, MODEL_BACKUP, contents);
     }

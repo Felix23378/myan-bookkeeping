@@ -220,13 +220,18 @@ export function useChat() {
       const msg: string = err?.message || err?.toString() || '';
       const isKeyError = msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || msg.includes('PERMISSION_DENIED');
       const isModelError = msg.includes('not found') || msg.includes('404') || msg.includes('is not supported');
+      const isOverload = msg.includes('high demand') || msg.includes('overloaded') || msg.includes('503')
+        || msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('try again later')
+        || msg.includes('quota') || msg.includes('UNAVAILABLE');
       addMessage({
         role: 'assistant',
         content: isKeyError
           ? '❌ API Key မှားနေပါတယ်။ Settings မှာ သွားပြင်ပါ။'
           : isModelError
             ? '❌ Gemini model ကို access မရပါ။ API Key ၏ quota သို့မဟုတ် model access စစ်ဆေးပါ။'
-            : `❌ Error: ${msg || 'မသိသောပြဿနာ'}`
+            : isOverload
+              ? '⏳ AI model အသုံးများနေပါတယ်။ ခဏစောင့်ပြီး ထပ်ကြိုးစားပါ။'
+              : `❌ Error: ${msg || 'မသိသောပြဿနာ'}`
       });
     } finally {
       setIsLoading(false);
