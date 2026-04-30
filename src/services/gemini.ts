@@ -33,8 +33,8 @@ const DEFAULT_CATEGORIES = [
   'ဖုန်း/အင်တာနက်', 'မီး/ရေ', 'အဝတ်အထည်', 'ဖျော်ဖြေရေး', 'အခြားကုန်ကျ'
 ];
 
-const MODEL_PRIMARY = 'gemini-3.1-flash-lite-preview';
-const MODEL_BACKUP  = 'gemini-3-flash-preview';
+const MODEL_PRIMARY = 'gemini-2.5-flash-preview-05-20';
+const MODEL_BACKUP  = 'gemini-2.0-flash';
 
 // Use proxy in production (Vercel), direct in local dev
 const PROXY_URL = '/api/gemini';
