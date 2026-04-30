@@ -168,7 +168,7 @@ body {
   line-height: 1.6;
   width: 100%;
   min-height: 100vh;
-  min-height: 100svh;
+  min-height: 100dvh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -178,7 +178,7 @@ body {
 #root {
   width: 100%;
   min-height: 100vh;
-  min-height: 100svh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -450,7 +450,7 @@ input, textarea, select {
   flex-direction: column;
   width: 100%;
   height: 100vh;
-  height: 100svh;
+  height: 100dvh;
   max-width: none;
   margin: 0;
   position: relative;
