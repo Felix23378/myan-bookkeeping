@@ -34,7 +34,7 @@ This app lets owners **type or speak in Burmese**, and AI automatically records 
 | Frontend | React + Vite + TypeScript |
 | Styling | Vanilla CSS (mobile-first) |
 | Auth | Supabase (email + password) |
-| AI | Gemini API (`gemini-3.1-flash-lite-preview`) |
+| AI | Gemini API (`gemini-3.1-flash-lite`) |
 | Storage | Browser localStorage |
 | PWA | vite-plugin-pwa + Workbox |
 | Deploy | Vercel |
