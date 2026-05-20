@@ -18,6 +18,7 @@ export interface PendingConfirmation {
   qty: number;
   date: string;
   source: 'chat' | 'voice';
+  wallet?: string;
 }
 
 export interface ChatMessage {
@@ -67,13 +68,15 @@ export function useChat() {
       return;
     }
 
-    const { product, qty, date, source } = msg.pendingConfirm;
+    const { product, qty, date, source, wallet } = msg.pendingConfirm;
     const result = processParsedAction({
-      action: { kind: 'sale', productName: product.name, qty, date },
+      action: { kind: 'sale', productName: product.name, qty, date, wallet },
       userId: state.user.id,
       products: state.products,
       dispatch,
       source,
+      defaultWalletId: state.prefs.defaultWalletId,
+      validWalletIds: new Set(state.wallets.map(w => w.id)),
     });
 
     if (result.ok) {
@@ -84,7 +87,7 @@ export function useChat() {
     } else {
       addMessage({ role: 'assistant', content: result.message });
     }
-  }, [messages, state.user, state.products, dispatch, addMessage]);
+  }, [messages, state.user, state.products, state.wallets, state.prefs.defaultWalletId, dispatch, addMessage]);
 
   const sendMessage = useCallback(async (userInput: string, audioBlob?: Blob) => {
     if (!state.user || !state.apiKey) return;
@@ -104,9 +107,14 @@ export function useChat() {
 
     try {
       const source = audioBlob ? 'voice' : 'chat';
+      const defaultWalletId = state.prefs.defaultWalletId;
+      const validWalletIds = new Set(state.wallets.map(w => w.id));
+      const resolveWallet = (w: string | undefined): string =>
+        w && validWalletIds.has(w) ? w : defaultWalletId;
+
       const response = audioBlob
-        ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions, state.prefs.currency, state.products)
-        : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency, state.products);
+        ? await parseTransactionFromAudio(state.apiKey, audioBlob, state.transactions, state.prefs.currency, state.products, state.wallets, defaultWalletId)
+        : await parseTransactionFromText(state.apiKey, userInput, state.transactions, state.prefs.currency, state.products, state.wallets, defaultWalletId);
 
       let hasPendingConfirm = false;
       // Track products that already triggered a confirmation in this turn,
@@ -142,7 +150,7 @@ export function useChat() {
             addMessage({
               role: 'assistant',
               content: `${matched.name} ${action.qty} ${matched.unitLabel} ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
-              pendingConfirm: { product: matched, qty: action.qty, date: action.date, source },
+              pendingConfirm: { product: matched, qty: action.qty, date: action.date, source, wallet: resolveWallet(action.wallet) },
             });
             claimedProductIds.add(matched.id);
             hasPendingConfirm = true;
@@ -158,7 +166,7 @@ export function useChat() {
               addMessage({
                 role: 'assistant',
                 content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${action.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
-                pendingConfirm: { product: matched, qty: inferredQty, date: action.date, source },
+                pendingConfirm: { product: matched, qty: inferredQty, date: action.date, source, wallet: resolveWallet(action.wallet) },
               });
               claimedProductIds.add(matched.id);
               hasPendingConfirm = true;
@@ -170,6 +178,7 @@ export function useChat() {
               type: 'income', amount: action.amount,
               description: action.description, category: action.category,
               date: action.date, createdAt: new Date().toISOString(), source,
+              wallet: resolveWallet(action.wallet),
             };
             saveTransaction(state.user.id, tx);
             dispatch({ type: 'ADD_TRANSACTION', payload: tx });
@@ -179,6 +188,7 @@ export function useChat() {
           // All other actions (stock_out, expense) — process normally
           const result = processParsedAction({
             action, userId: state.user.id, products: currentProducts, dispatch, source,
+            defaultWalletId, validWalletIds,
           });
           if (result.ok) currentProducts = result.products;
           else addMessage({ role: 'assistant', content: result.message });
@@ -195,7 +205,7 @@ export function useChat() {
             addMessage({
               role: 'assistant',
               content: `${matched.name} ${inferredQty} ${matched.unitLabel} (${matched.sellingPrice.toLocaleString()} × ${inferredQty} = ${parsed.amount.toLocaleString()} ကျပ်) ရောင်းသည်မှန်ပါသလား?\n\n_အောက်က ခလုတ်နှိပ်ပြီး အတည်ပြုပါ — အတည်မပြုခင် မှတ်တမ်း မသိမ်းရသေးပါ။_`,
-              pendingConfirm: { product: matched, qty: inferredQty, date: parsed.date, source },
+              pendingConfirm: { product: matched, qty: inferredQty, date: parsed.date, source, wallet: resolveWallet(parsed.wallet) },
             });
             claimedProductIds.add(matched.id);
             hasPendingConfirm = true;
@@ -207,6 +217,7 @@ export function useChat() {
           type: parsed.type, amount: parsed.amount,
           description: parsed.description, category: parsed.category,
           date: parsed.date, createdAt: new Date().toISOString(), source,
+          wallet: resolveWallet(parsed.wallet),
         };
         saveTransaction(state.user.id, tx);
         dispatch({ type: 'ADD_TRANSACTION', payload: tx });
@@ -236,7 +247,7 @@ export function useChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [state.user, state.apiKey, state.isOnline, state.transactions, state.products, state.prefs.currency, addMessage, dispatch]);
+  }, [state.user, state.apiKey, state.isOnline, state.transactions, state.products, state.wallets, state.prefs.currency, state.prefs.defaultWalletId, addMessage, dispatch]);
 
   return { messages, sendMessage, isLoading, confirmSale };
 }

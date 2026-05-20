@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import { getApiKey, getUserPrefs, getTransactions, getProducts, getStockMovements, type Transaction, type UserPrefs, type Product, type StockMovement } from '../services/storage';
+import { getApiKey, getUserPrefs, getTransactions, getProducts, getStockMovements, getWallets, type Transaction, type UserPrefs, type Product, type StockMovement, type Wallet } from '../services/storage';
 
 // ---- State ----
 interface AppState {
@@ -12,8 +12,9 @@ interface AppState {
   transactions: Transaction[];
   products: Product[];
   stockMovements: StockMovement[];
+  wallets: Wallet[];
   isOnline: boolean;
-  activeTab: 'chat' | 'dashboard' | 'inventory' | 'settings';
+  activeTab: 'chat' | 'dashboard' | 'inventory' | 'wallets' | 'settings';
 }
 
 // ---- Actions ----
@@ -33,6 +34,10 @@ type AppAction =
   | { type: 'SET_STOCK_MOVEMENTS'; payload: StockMovement[] }
   | { type: 'ADD_STOCK_MOVEMENT'; payload: StockMovement }
   | { type: 'DELETE_STOCK_MOVEMENT'; payload: string }
+  | { type: 'SET_WALLETS'; payload: Wallet[] }
+  | { type: 'ADD_WALLET'; payload: Wallet }
+  | { type: 'UPDATE_WALLET'; payload: Wallet }
+  | { type: 'DELETE_WALLET'; payload: string }
   | { type: 'SET_ONLINE'; payload: boolean }
   | { type: 'SET_TAB'; payload: AppState['activeTab'] };
 
@@ -63,6 +68,13 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'SET_STOCK_MOVEMENTS': return { ...state, stockMovements: action.payload };
     case 'ADD_STOCK_MOVEMENT': return { ...state, stockMovements: [action.payload, ...state.stockMovements] };
     case 'DELETE_STOCK_MOVEMENT': return { ...state, stockMovements: state.stockMovements.filter(m => m.id !== action.payload) };
+    case 'SET_WALLETS': return { ...state, wallets: action.payload };
+    case 'ADD_WALLET': return { ...state, wallets: [...state.wallets, action.payload] };
+    case 'UPDATE_WALLET': return {
+      ...state,
+      wallets: state.wallets.map(w => w.id === action.payload.id ? action.payload : w)
+    };
+    case 'DELETE_WALLET': return { ...state, wallets: state.wallets.filter(w => w.id !== action.payload) };
     case 'SET_ONLINE': return { ...state, isOnline: action.payload };
     case 'SET_TAB': return { ...state, activeTab: action.payload };
     default: return state;
@@ -86,6 +98,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     transactions: [],
     products: [],
     stockMovements: [],
+    wallets: [],
     isOnline: navigator.onLine,
     activeTab: 'chat',
   };
@@ -104,6 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_TRANSACTIONS', payload: getTransactions(user.id) });
         dispatch({ type: 'SET_PRODUCTS', payload: getProducts(user.id) });
         dispatch({ type: 'SET_STOCK_MOVEMENTS', payload: getStockMovements(user.id) });
+        dispatch({ type: 'SET_WALLETS', payload: getWallets(user.id) });
       }
     });
 
@@ -117,6 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_TRANSACTIONS', payload: getTransactions(user.id) });
         dispatch({ type: 'SET_PRODUCTS', payload: getProducts(user.id) });
         dispatch({ type: 'SET_STOCK_MOVEMENTS', payload: getStockMovements(user.id) });
+        dispatch({ type: 'SET_WALLETS', payload: getWallets(user.id) });
       }
     });
 

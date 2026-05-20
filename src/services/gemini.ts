@@ -1,4 +1,4 @@
-import { CURRENCIES, type CurrencyCode, type Product } from './storage';
+import { CURRENCIES, type CurrencyCode, type Product, type Wallet } from './storage';
 import type { Transaction } from './storage';
 
 export interface ParsedTransaction {
@@ -8,6 +8,7 @@ export interface ParsedTransaction {
   category: string;
   date: string;
   confidence: 'high' | 'low';
+  wallet?: string;
 }
 
 export interface GeminiResponse {
@@ -20,9 +21,9 @@ export interface GeminiResponse {
 export type ParsedInventoryAction =
   | { kind: 'stock_in'; productName: string; qty: number; costPrice?: number; reason?: string; date: string }
   | { kind: 'stock_out'; productName: string; qty: number; reason?: string; date: string }
-  | { kind: 'sale'; productName: string; qty: number; date: string }
-  | { kind: 'income'; amount: number; description: string; category: string; date: string; confidence: 'high' | 'low' }
-  | { kind: 'expense'; amount: number; description: string; category: string; date: string; confidence: 'high' | 'low' };
+  | { kind: 'sale'; productName: string; qty: number; date: string; wallet?: string }
+  | { kind: 'income'; amount: number; description: string; category: string; date: string; confidence: 'high' | 'low'; wallet?: string }
+  | { kind: 'expense'; amount: number; description: string; category: string; date: string; confidence: 'high' | 'low'; wallet?: string };
 
 const DEFAULT_CATEGORIES = [
   // Income
@@ -36,7 +37,7 @@ const DEFAULT_CATEGORIES = [
 // Use proxy in production (Vercel), direct in local dev
 const PROXY_URL = '/api/gemini';
 
-function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK', products: Product[] = []): string {
+function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK', products: Product[] = [], wallets: Wallet[] = [], defaultWalletId: string = 'wallet_kpay'): string {
   const cur = CURRENCIES[currencyCode];
   const currencyNote = currencyCode === 'MMK'
     ? `The user's currency is Myanmar Kyat (MMK/ကျပ်). 1 သိန်း = 100,000 ကျပ်, 1 ထောင် = 1,000, K or ကျပ် = kyat.`
@@ -46,6 +47,26 @@ function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK', products: Product
   const productListText = hasProducts
     ? `\nPRODUCT INVENTORY:\n${products.map(p => `- "${p.name}" (လက်ကျန်: ${p.currentQty} ${p.unitLabel}, ရောင်းဈေး: ${p.sellingPrice})`).join('\n')}`
     : '';
+
+  const defaultWallet = wallets.find(w => w.id === defaultWalletId) || wallets[0];
+  const walletListText = wallets.length > 0
+    ? `\nAVAILABLE WALLETS / PAYMENT METHODS:\n${wallets.map(w => `- id="${w.id}" → "${w.nameMy}" (${w.name})`).join('\n')}\nDefault wallet (use when user does not mention one): id="${defaultWallet?.id ?? defaultWalletId}"`
+    : '';
+
+  const walletInstructions = `
+WALLET DETECTION (very important — the user uses multiple mobile wallets and forgets which one was used):
+- Look for these payment-method phrases in user messages:
+  · KBZ Pay: "kpay", "k pay", "kbz", "kbz pay", "ကေဘီဇက်ပေး", "ကေပေး", "ကေဘီဇီပေး" → id="wallet_kpay"
+  · Wave Pay: "wave", "wave pay", "wavepay", "ဝေ့ဗ်", "ဝေ့ဗ်ပေး", "ဝေပေး" → id="wallet_wavepay"
+  · AYA Pay: "aya", "aya pay", "ayapay", "အေဝိုင်အေ", "အေဝိုင်အေပေး" → id="wallet_ayapay"
+  · UAB Pay: "uab", "uab pay", "uabpay", "ယူအေဘီ", "ယူအေဘီပေး" → id="wallet_uabpay"
+  · CB Pay: "cb", "cb pay", "cbpay", "စီဘီ", "စီဘီပေး" → id="wallet_cbpay"
+  · Cash: "cash", "ငွေသား", "လက်ငွေ", "ပိုက်ဆံ" (when clearly meaning physical cash) → id="wallet_cash"
+- For custom wallets in the list above, match by name (Burmese or English, case-insensitive, fuzzy ok).
+- Include the matched wallet id in the "wallet" field of every transaction and inventory action.
+- If NO payment method is mentioned, OMIT the "wallet" field (or set to "" — the app will use the default wallet automatically). Do not guess.
+- A single message can contain multiple transactions on different wallets — e.g., "KPay နဲ့ ဆန် ၂သောင်း ဝယ်ပြီး Wave နဲ့ ၅သောင်း ရတယ်" → two transactions with different wallet ids.
+`;
 
   const inventoryInstructions = hasProducts ? `
 3. INVENTORY COMMANDS — when user mentions selling or removing a product from the list above:
@@ -58,14 +79,14 @@ function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK', products: Product
 ` : '';
 
   const inventoryJsonExample = hasProducts ? `
-When recording INVENTORY actions, use this format:
+When recording INVENTORY actions, use this format (include "wallet" field on sale/income/expense when payment method mentioned):
 {
   "transactions": [],
   "inventoryActions": [
-    { "kind": "sale", "productName": "product name", "qty": 3, "date": "YYYY-MM-DD" },
+    { "kind": "sale", "productName": "product name", "qty": 3, "date": "YYYY-MM-DD", "wallet": "wallet_kpay" },
     { "kind": "stock_out", "productName": "product name", "qty": 1, "reason": "ပျက်စီး", "date": "YYYY-MM-DD" },
-    { "kind": "income", "amount": 10000, "description": "...", "category": "...", "date": "YYYY-MM-DD", "confidence": "high" },
-    { "kind": "expense", "amount": 5000, "description": "...", "category": "...", "date": "YYYY-MM-DD", "confidence": "high" }
+    { "kind": "income", "amount": 10000, "description": "...", "category": "...", "date": "YYYY-MM-DD", "confidence": "high", "wallet": "wallet_wavepay" },
+    { "kind": "expense", "amount": 5000, "description": "...", "category": "...", "date": "YYYY-MM-DD", "confidence": "high", "wallet": "wallet_cash" }
   ],
   "replyMessage": "...",
   "needsClarification": false
@@ -82,6 +103,7 @@ Users may record BOTH business and personal transactions — do NOT assume every
 
 ${currencyNote}
 ${productListText}
+${walletListText}
 
 IMPORTANT RULES:
 1. Extract ALL financial transactions from the user's message
@@ -91,6 +113,7 @@ IMPORTANT RULES:
 5. Available categories: ${DEFAULT_CATEGORIES.join(', ')}
 6. CRITICAL: Use the user's EXACT description. Do NOT rephrase.
 7. The amount field must be a plain number in ${cur.code}. Do NOT convert currencies.
+${walletInstructions}
 ${inventoryInstructions}
 IMPORTANT RULES FOR ANSWERING DATA QUESTIONS:
 - Analyze provided transaction history and answer clearly in Burmese
@@ -106,7 +129,8 @@ Respond ONLY with valid JSON. Default format (no inventory):
       "description": "user's own words",
       "category": "one of the available categories",
       "date": "YYYY-MM-DD",
-      "confidence": "high" or "low"
+      "confidence": "high" or "low",
+      "wallet": "wallet id from list above, OMIT if not mentioned"
     }
   ],
   "inventoryActions": [],
@@ -211,7 +235,9 @@ export const parseTransactionFromText = async (
   userMessage: string,
   existingTransactions: Transaction[] = [],
   currencyCode: CurrencyCode = 'MMK',
-  products: Product[] = []
+  products: Product[] = [],
+  wallets: Wallet[] = [],
+  defaultWalletId: string = 'wallet_kpay'
 ): Promise<GeminiResponse> => {
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
@@ -221,7 +247,7 @@ export const parseTransactionFromText = async (
   const txContext = buildTransactionContext(existingTransactions, currencyCode);
 
   const contents = [
-    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode, products) }] },
+    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode, products, wallets, defaultWalletId) }] },
     { role: 'model', parts: [{ text: 'OK, I will parse bookkeeping and inventory messages. I will return JSON only.' }] },
     {
       role: 'user', parts: [{
@@ -245,7 +271,9 @@ export const parseTransactionFromAudio = async (
   audioBlob: Blob,
   _existingTransactions: Transaction[] = [],
   currencyCode: CurrencyCode = 'MMK',
-  products: Product[] = []
+  products: Product[] = [],
+  wallets: Wallet[] = [],
+  defaultWalletId: string = 'wallet_kpay'
 ): Promise<GeminiResponse> => {
   const today = new Date().toISOString().split('T')[0];
 
@@ -256,7 +284,7 @@ export const parseTransactionFromAudio = async (
   const base64Audio = btoa(binary);
 
   const contents = [
-    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode, products) }] },
+    { role: 'user', parts: [{ text: buildSystemPrompt(currencyCode, products, wallets, defaultWalletId) }] },
     { role: 'model', parts: [{ text: 'OK.' }] },
     {
       role: 'user', parts: [

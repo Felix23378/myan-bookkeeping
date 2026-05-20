@@ -6,6 +6,7 @@ import ApiKeySetup from './components/Onboarding/ApiKeySetup';
 import ChatView from './components/Chat/ChatView';
 import Dashboard from './components/Dashboard/Dashboard';
 import Inventory from './components/Inventory/Inventory';
+import Wallets from './components/Wallets/Wallets';
 import Settings from './components/Settings/Settings';
 import BottomNav from './components/Navigation/BottomNav';
 import { BookOpen, Wifi, WifiOff } from 'lucide-react';
@@ -62,6 +63,7 @@ function AppHeader() {
   const tabTitles = {
     chat: 'မြန်မာ Bookkeeping',
     dashboard: 'စာရင်းရှင်းတမ်း',
+    wallets: 'ပိုက်ဆံအိတ်များ',
     inventory: 'ကုန်ပစ္စည်းစာရင်း',
     settings: 'ဆက်တင်',
   };
@@ -114,6 +116,7 @@ function MainApp() {
       <main className="app-content" id="main-content">
         {state.activeTab === 'chat' && <ChatView />}
         {state.activeTab === 'dashboard' && <Dashboard />}
+        {state.activeTab === 'wallets' && <Wallets />}
         {state.activeTab === 'inventory' && <Inventory />}
         {state.activeTab === 'settings' && <Settings />}
       </main>

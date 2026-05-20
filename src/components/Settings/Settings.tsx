@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import {
   Key, Tag, Plus, X, Download, Trash2,
-  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield, Coins, Sun, Moon, Send
+  LogOut, ChevronRight, Eye, EyeOff, CheckCircle, Shield, Coins, Sun, Moon, Send, Wallet as WalletIcon, Star
 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
-import { saveApiKey, clearAllTransactions, saveUserPrefs, exportToCSV, CURRENCIES } from '../../services/storage';
-import type { CurrencyCode } from '../../services/storage';
+import { saveApiKey, clearAllTransactions, saveUserPrefs, exportToCSV, CURRENCIES, saveWallet, deleteWallet } from '../../services/storage';
+import type { CurrencyCode, Wallet } from '../../services/storage';
 import { validateApiKey } from '../../services/gemini';
 import { useApp } from '../../context/AppContext';
+
+const CUSTOM_WALLET_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#EF4444', '#84CC16'];
+
+function generateWalletId() {
+  return `wallet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export default function Settings() {
   const { state, dispatch } = useApp();
@@ -17,6 +23,8 @@ export default function Settings() {
   const [keyStatus, setKeyStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [newCategory, setNewCategory] = useState('');
   const [categories, setCategories] = useState<string[]>(state.prefs.customCategories);
+  const [newWalletName, setNewWalletName] = useState('');
+  const [newWalletColor, setNewWalletColor] = useState(CUSTOM_WALLET_COLORS[0]);
 
   const handleUpdateApiKey = async () => {
     if (!newApiKey.trim()) return;
@@ -60,6 +68,40 @@ export default function Settings() {
 
   const handleExport = () => {
     if (state.user) exportToCSV(state.user.id);
+  };
+
+  const handleSetDefaultWallet = (walletId: string) => {
+    saveUserPrefs({ defaultWalletId: walletId });
+    dispatch({ type: 'SET_PREFS', payload: { defaultWalletId: walletId } });
+  };
+
+  const handleAddWallet = () => {
+    if (!state.user) return;
+    const name = newWalletName.trim();
+    if (!name) return;
+    const wallet: Wallet = {
+      id: generateWalletId(),
+      userId: state.user.id,
+      name,
+      nameMy: name,
+      color: newWalletColor,
+      isBuiltIn: false,
+      createdAt: new Date().toISOString(),
+    };
+    saveWallet(state.user.id, wallet);
+    dispatch({ type: 'ADD_WALLET', payload: wallet });
+    setNewWalletName('');
+  };
+
+  const handleDeleteWallet = (wallet: Wallet) => {
+    if (!state.user || wallet.isBuiltIn) return;
+    if (wallet.id === state.prefs.defaultWalletId) {
+      window.alert('မူရင်း ပိုက်ဆံအိတ်ကို မဖျက်နိုင်ပါ။ အရင် တခြားအိတ်တစ်ခုကို မူရင်းအဖြစ် ရွေးပါ။');
+      return;
+    }
+    if (!window.confirm(`"${wallet.nameMy}" ဖျက်မှာ သေချာပါသလား?`)) return;
+    deleteWallet(state.user.id, wallet.id);
+    dispatch({ type: 'DELETE_WALLET', payload: wallet.id });
   };
 
   const handleSignOut = async () => {
@@ -183,6 +225,75 @@ export default function Settings() {
             <p className="text-muted text-my" style={{ fontSize: '0.8125rem' }}>
               ရွေးချယ်ထားသော ငွေကြေးဖြင့် မှတ်တမ်းတင်ပါမည်
             </p>
+          </div>
+        </div>
+
+        {/* Wallets */}
+        <div className="view-section">
+          <div className="view-section-title">
+            <WalletIcon size={15} />
+            <span className="text-my">ပိုက်ဆံအိတ်များ</span>
+          </div>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <p className="text-my text-muted" style={{ fontSize: '0.8125rem' }}>
+              မူရင်းအိတ်ကို ⭐ နှိပ်ပြီး ပြောင်းနိုင်ပါသည်
+            </p>
+            <div className="wallet-list">
+              {state.wallets.map(w => {
+                const isDefault = w.id === state.prefs.defaultWalletId;
+                return (
+                  <div key={w.id} className="wallet-row">
+                    <div className="wallet-dot" style={{ background: w.color }} />
+                    <div className="wallet-row-info">
+                      <span className="text-my" style={{ fontWeight: 500 }}>{w.nameMy}</span>
+                      {w.isBuiltIn && <span className="wallet-builtin-tag">built-in</span>}
+                    </div>
+                    <button
+                      className={`wallet-star ${isDefault ? 'active' : ''}`}
+                      onClick={() => handleSetDefaultWallet(w.id)}
+                      aria-label="Set as default"
+                      title={isDefault ? 'မူရင်း' : 'မူရင်းအဖြစ်သတ်မှတ်ရန်'}
+                    >
+                      <Star size={15} fill={isDefault ? 'var(--accent)' : 'none'} />
+                    </button>
+                    {!w.isBuiltIn && (
+                      <button
+                        className="wallet-delete"
+                        onClick={() => handleDeleteWallet(w)}
+                        aria-label="Delete wallet"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="add-wallet-row">
+              <input
+                type="text"
+                className="input"
+                placeholder="ဥပမာ: KBZ Bank, AYA Bank..."
+                value={newWalletName}
+                onChange={e => setNewWalletName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddWallet()}
+                style={{ flex: 1 }}
+              />
+              <button className="btn btn-secondary" onClick={handleAddWallet} style={{ flexShrink: 0 }}>
+                <Plus size={16} /> ထည့်မည်
+              </button>
+            </div>
+            <div className="wallet-color-row">
+              {CUSTOM_WALLET_COLORS.map(c => (
+                <button
+                  key={c}
+                  className={`wallet-color-swatch ${newWalletColor === c ? 'selected' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => setNewWalletColor(c)}
+                  aria-label={`Color ${c}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -423,6 +534,65 @@ export default function Settings() {
             background: rgba(34, 158, 217, 0.15);
             color: #229ED9;
             flex-shrink: 0;
+          }
+          .wallet-list { display: flex; flex-direction: column; gap: 4px; }
+          .wallet-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+          }
+          .wallet-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+          }
+          .wallet-row-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            font-size: 0.875rem;
+          }
+          .wallet-builtin-tag {
+            font-size: 0.625rem;
+            color: var(--text-muted);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1px 6px;
+            border-radius: var(--radius-full);
+          }
+          .wallet-star, .wallet-delete {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            padding: 4px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+          }
+          .wallet-star.active { color: var(--accent); }
+          .wallet-star:hover { color: var(--accent); }
+          .wallet-delete:hover { color: var(--expense); background: var(--expense-dim); }
+          .add-wallet-row { display: flex; gap: var(--space-2); }
+          .wallet-color-row { display: flex; gap: 6px; flex-wrap: wrap; }
+          .wallet-color-swatch {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            padding: 0;
+          }
+          .wallet-color-swatch.selected {
+            border-color: var(--text-primary);
+            transform: scale(1.05);
           }
         `}</style>
       </div>

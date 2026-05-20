@@ -34,7 +34,29 @@ export interface Transaction {
   date: string; // ISO date string YYYY-MM-DD
   createdAt: string;
   source: 'chat' | 'voice' | 'manual';
+  wallet?: string; // wallet id; undefined treated as user's default wallet
 }
+
+export interface Wallet {
+  id: string;
+  userId: string; // empty string for built-ins
+  name: string;
+  nameMy: string;
+  color: string;
+  isBuiltIn: boolean;
+  createdAt: string;
+}
+
+export const BUILT_IN_WALLETS: Wallet[] = [
+  { id: 'wallet_kpay',    userId: '', name: 'KBZ Pay',  nameMy: 'KBZ Pay',  color: '#E60039', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_wavepay', userId: '', name: 'Wave Pay', nameMy: 'Wave Pay', color: '#0072CE', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_ayapay',  userId: '', name: 'AYA Pay',  nameMy: 'AYA Pay',  color: '#FF6B00', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_uabpay',  userId: '', name: 'UAB Pay',  nameMy: 'UAB Pay',  color: '#006B5B', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_cbpay',   userId: '', name: 'CB Pay',   nameMy: 'CB Pay',   color: '#7C3AED', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_cash',    userId: '', name: 'Cash',     nameMy: 'ငွေသား',    color: '#16A34A', isBuiltIn: true, createdAt: '' },
+];
+
+export const DEFAULT_WALLET_ID = 'wallet_kpay';
 
 export interface OfflineQueueItem {
   id: string;
@@ -71,6 +93,7 @@ export interface UserPrefs {
   customCategories: string[];
   currency: CurrencyCode;
   theme: 'dark' | 'light';
+  defaultWalletId: string;
 }
 
 const KEYS = {
@@ -80,6 +103,7 @@ const KEYS = {
   OFFLINE_QUEUE: 'mba_offline_queue',
   PRODUCTS: 'mba_products',
   STOCK_MOVEMENTS: 'mba_stock_movements',
+  WALLETS: 'mba_wallets',
 };
 
 // ---- Gemini API Key ----
@@ -104,6 +128,7 @@ const defaultPrefs: UserPrefs = {
   customCategories: [],
   currency: 'MMK',
   theme: 'dark',
+  defaultWalletId: DEFAULT_WALLET_ID,
 };
 
 export const getUserPrefs = (): UserPrefs => {
@@ -206,13 +231,48 @@ export const deleteStockMovement = (userId: string, movementId: string): void =>
   localStorage.setItem(`${KEYS.STOCK_MOVEMENTS}_${userId}`, JSON.stringify(existing));
 };
 
+// ---- Wallets ----
+export const getCustomWallets = (userId: string): Wallet[] => {
+  try {
+    const raw = localStorage.getItem(`${KEYS.WALLETS}_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+export const getWallets = (userId: string): Wallet[] => {
+  return [...BUILT_IN_WALLETS, ...getCustomWallets(userId)];
+};
+
+export const saveWallet = (userId: string, wallet: Wallet): void => {
+  if (wallet.isBuiltIn) return;
+  const existing = getCustomWallets(userId);
+  const idx = existing.findIndex(w => w.id === wallet.id);
+  if (idx >= 0) existing[idx] = wallet;
+  else existing.push(wallet);
+  localStorage.setItem(`${KEYS.WALLETS}_${userId}`, JSON.stringify(existing));
+};
+
+export const deleteWallet = (userId: string, walletId: string): void => {
+  const existing = getCustomWallets(userId).filter(w => w.id !== walletId);
+  localStorage.setItem(`${KEYS.WALLETS}_${userId}`, JSON.stringify(existing));
+};
+
+export const findWallet = (wallets: Wallet[], walletId: string | undefined, fallbackId: string): Wallet => {
+  return wallets.find(w => w.id === walletId)
+    ?? wallets.find(w => w.id === fallbackId)
+    ?? BUILT_IN_WALLETS[0];
+};
+
 // ---- Export ----
 export const exportToCSV = (userId: string): void => {
   const transactions = getTransactions(userId);
-  const header = 'Date,Type,Amount,Description,Category,Source\n';
-  const rows = transactions.map(t =>
-    `${t.date},${t.type},${t.amount},"${t.description}","${t.category}",${t.source}`
-  ).join('\n');
+  const wallets = getWallets(userId);
+  const prefs = getUserPrefs();
+  const header = 'Date,Type,Amount,Description,Category,Wallet,Source\n';
+  const rows = transactions.map(t => {
+    const w = findWallet(wallets, t.wallet, prefs.defaultWalletId);
+    return `${t.date},${t.type},${t.amount},"${t.description}","${t.category}","${w.name}",${t.source}`;
+  }).join('\n');
   const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

@@ -117,7 +117,8 @@ function createIncomeTransaction(
   product: Product,
   qty: number,
   date: string,
-  source: Transaction['source']
+  source: Transaction['source'],
+  wallet?: string,
 ): Transaction {
   return {
     id: generateId('tx'),
@@ -129,6 +130,7 @@ function createIncomeTransaction(
     date,
     createdAt: new Date().toISOString(),
     source,
+    wallet,
   };
 }
 
@@ -139,7 +141,8 @@ function createExpenseTransaction(
   qty: number,
   totalCost: number,
   date: string,
-  source: Transaction['source']
+  source: Transaction['source'],
+  wallet?: string,
 ): Transaction {
   return {
     id: generateId('tx'),
@@ -151,6 +154,7 @@ function createExpenseTransaction(
     date,
     createdAt: new Date().toISOString(),
     source,
+    wallet,
   };
 }
 
@@ -178,8 +182,12 @@ export function processParsedAction(params: {
   products: Product[];
   dispatch: AppDispatch;
   source: 'chat' | 'voice';
+  defaultWalletId: string;
+  validWalletIds: Set<string>;
 }): ActionSuccess | ActionFailure {
-  const { action, userId, products, dispatch, source } = params;
+  const { action, userId, products, dispatch, source, defaultWalletId, validWalletIds } = params;
+  const resolveWallet = (w: string | undefined) =>
+    w && validWalletIds.has(w) ? w : defaultWalletId;
 
   if (action.kind === 'income' || action.kind === 'expense') {
     if (!action.amount || !action.description || !action.category) {
@@ -196,6 +204,7 @@ export function processParsedAction(params: {
       date: action.date,
       createdAt: new Date().toISOString(),
       source,
+      wallet: resolveWallet(action.wallet),
     };
     saveTransaction(userId, tx);
     dispatch({ type: 'ADD_TRANSACTION', payload: tx });
@@ -215,7 +224,7 @@ export function processParsedAction(params: {
     const updatedProduct = updateProductQty(userId, product, product.currentQty + action.qty, dispatch);
     let relatedTxId: string | undefined;
     if (action.costPrice) {
-      const expenseTx = createExpenseTransaction(userId, product.name, product.unitLabel, action.qty, action.costPrice, action.date, source);
+      const expenseTx = createExpenseTransaction(userId, product.name, product.unitLabel, action.qty, action.costPrice, action.date, source, defaultWalletId);
       saveTransaction(userId, expenseTx);
       dispatch({ type: 'ADD_TRANSACTION', payload: expenseTx });
       relatedTxId = expenseTx.id;
@@ -248,7 +257,7 @@ export function processParsedAction(params: {
 
   const updatedProduct = updateProductQty(userId, product, product.currentQty - action.qty, dispatch);
 
-  const incomeTx = createIncomeTransaction(userId, product, action.qty, action.date, source);
+  const incomeTx = createIncomeTransaction(userId, product, action.qty, action.date, source, resolveWallet(action.wallet));
   saveTransaction(userId, incomeTx);
   dispatch({ type: 'ADD_TRANSACTION', payload: incomeTx });
 
@@ -278,8 +287,9 @@ export function createManualStockMovement(params: {
   note: string;
   totalCost?: number;
   dispatch: AppDispatch;
+  wallet?: string;
 }): { ok: true } | { ok: false; message: string } {
-  const { userId, product, qty, type, date, note, totalCost, dispatch } = params;
+  const { userId, product, qty, type, date, note, totalCost, dispatch, wallet } = params;
   if (qty <= 0) return { ok: false, message: 'အရေအတွက် မှန်ကန်စွာ ထည့်ပါ။' };
   if ((type === 'stock_out' || type === 'sale') && product.currentQty < qty) {
     return { ok: false, message: `${product.name} လက်ကျန်မလုံလောက်ပါ။` };
@@ -290,12 +300,12 @@ export function createManualStockMovement(params: {
 
   let relatedTxId: string | undefined;
   if (type === 'sale') {
-    const incomeTx = createIncomeTransaction(userId, product, qty, date, 'manual');
+    const incomeTx = createIncomeTransaction(userId, product, qty, date, 'manual', wallet);
     saveTransaction(userId, incomeTx);
     dispatch({ type: 'ADD_TRANSACTION', payload: incomeTx });
     relatedTxId = incomeTx.id;
   } else if (type === 'stock_in' && totalCost && totalCost > 0) {
-    const expenseTx = createExpenseTransaction(userId, product.name, product.unitLabel, qty, totalCost, date, 'manual');
+    const expenseTx = createExpenseTransaction(userId, product.name, product.unitLabel, qty, totalCost, date, 'manual', wallet);
     saveTransaction(userId, expenseTx);
     dispatch({ type: 'ADD_TRANSACTION', payload: expenseTx });
     relatedTxId = expenseTx.id;
