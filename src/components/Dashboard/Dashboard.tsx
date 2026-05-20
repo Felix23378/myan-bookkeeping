@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, Pencil, X, Check, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { deleteTransaction, deleteStockMovement, saveProduct, saveTransaction, CURRENCIES } from '../../services/storage';
-import type { Transaction } from '../../services/storage';
+import { deleteTransaction, deleteStockMovement, saveProduct, saveTransaction, CURRENCIES, findWallet } from '../../services/storage';
+import type { Transaction, Wallet } from '../../services/storage';
 
 const CATEGORIES = [
   'ရောင်းရငွေ', 'ဝန်ဆောင်မှုခ', 'လစာ', 'အတိုးရငွေ', 'အခြားဝင်ငွေ',
@@ -15,19 +15,20 @@ function generateId() {
   return `tx_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function AddTransactionModal({ onClose, onSave }: { onClose: () => void; onSave: (tx: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'source'>) => void }) {
+function AddTransactionModal({ onClose, onSave, wallets, defaultWalletId }: { onClose: () => void; onSave: (tx: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'source'>) => void; wallets: Wallet[]; defaultWalletId: string }) {
   const today = new Date().toISOString().split('T')[0];
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('ရောင်းရငွေ');
   const [date, setDate] = useState(today);
+  const [wallet, setWallet] = useState<string>(defaultWalletId);
   const [error, setError] = useState('');
 
   const handleSave = () => {
     if (!amount || Number(amount) <= 0) { setError('ပမာဏ ထည့်ပါ။'); return; }
     if (!description.trim()) { setError('အကြောင်းအရာ ထည့်ပါ။'); return; }
-    onSave({ type, amount: Number(amount), description: description.trim(), category, date });
+    onSave({ type, amount: Number(amount), description: description.trim(), category, date, wallet });
     onClose();
   };
 
@@ -95,6 +96,15 @@ function AddTransactionModal({ onClose, onSave }: { onClose: () => void; onSave:
             onChange={e => setDate(e.target.value)}
           />
         </div>
+
+        {/* Wallet selector */}
+        <select
+          className="edit-input w-full mt-2 text-my"
+          value={wallet}
+          onChange={e => setWallet(e.target.value)}
+        >
+          {wallets.map(w => <option key={w.id} value={w.id}>{w.nameMy}</option>)}
+        </select>
 
         {error && <p style={{ color: 'var(--expense)', fontSize: '0.8rem', marginTop: 8 }} className="text-my">{error}</p>}
 
@@ -184,11 +194,12 @@ function SummaryCard({ label, amount, type, icon, currencyLabel }: SummaryCardPr
   );
 }
 
-function TransactionItem({ tx, onDelete, onEdit }: { tx: Transaction; onDelete: () => void; onEdit: (tx: Transaction) => void }) {
+function TransactionItem({ tx, onDelete, onEdit, wallets, defaultWalletId }: { tx: Transaction; onDelete: () => void; onEdit: (tx: Transaction) => void; wallets: Wallet[]; defaultWalletId: string }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTx, setEditedTx] = useState(tx);
 
   const isIncome = tx.type === 'income';
+  const wallet = findWallet(wallets, tx.wallet, defaultWalletId);
 
   return (
     <>
@@ -198,7 +209,12 @@ function TransactionItem({ tx, onDelete, onEdit }: { tx: Transaction; onDelete: 
         </div>
         <div className="tx-info">
           <p className="tx-desc text-my">{tx.description}</p>
-          <p className="tx-meta text-my">{tx.category} · {tx.date}</p>
+          <p className="tx-meta text-my">
+            {tx.category} · {tx.date}
+            <span className="tx-wallet-badge" style={{ background: wallet.color + '22', color: wallet.color, borderColor: wallet.color + '55' }}>
+              {wallet.nameMy}
+            </span>
+          </p>
         </div>
         <div className="tx-right">
           <p className="tx-amount" style={{ color: isIncome ? 'var(--income)' : 'var(--expense)' }}>
@@ -256,6 +272,13 @@ function TransactionItem({ tx, onDelete, onEdit }: { tx: Transaction; onDelete: 
                 className="edit-input w-full text-my"
               />
             </div>
+            <select
+              className="edit-input w-full mt-2 text-my"
+              value={editedTx.wallet ?? defaultWalletId}
+              onChange={e => setEditedTx({ ...editedTx, wallet: e.target.value })}
+            >
+              {wallets.map(w => <option key={w.id} value={w.id}>{w.nameMy}</option>)}
+            </select>
             <div className="edit-actions mt-3">
               <button className="btn-icon tx-cancel" onClick={() => setIsEditing(false)}>
                 <X size={16} />
@@ -322,6 +345,7 @@ export default function Dashboard() {
       userId: state.user.id,
       createdAt: new Date().toISOString(),
       source: 'manual',
+      wallet: partial.wallet || state.prefs.defaultWalletId,
     };
     saveTransaction(state.user.id, tx);
     dispatch({ type: 'ADD_TRANSACTION', payload: tx });
@@ -434,7 +458,14 @@ export default function Dashboard() {
           ) : (
             <div className="tx-list">
               {[...filtered].reverse().map(tx => (
-                <TransactionItem key={tx.id} tx={tx} onDelete={() => handleDelete(tx)} onEdit={handleEdit} />
+                <TransactionItem
+                  key={tx.id}
+                  tx={tx}
+                  onDelete={() => handleDelete(tx)}
+                  onEdit={handleEdit}
+                  wallets={state.wallets}
+                  defaultWalletId={state.prefs.defaultWalletId}
+                />
               ))}
             </div>
           )}
@@ -444,6 +475,8 @@ export default function Dashboard() {
           <AddTransactionModal
             onClose={() => setShowAddForm(false)}
             onSave={handleAddTransaction}
+            wallets={state.wallets}
+            defaultWalletId={state.prefs.defaultWalletId}
           />
         )}
 
@@ -549,7 +582,23 @@ export default function Dashboard() {
           .tx-type-dot { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
           .tx-info { flex: 1; min-width: 0; }
           .tx-desc { font-size: 0.9rem; font-weight: 500; margin: 0; color: var(--text-primary); }
-          .tx-meta { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 0; }
+          .tx-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin: 2px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+          }
+          .tx-wallet-badge {
+            display: inline-block;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            padding: 1px 7px;
+            border-radius: var(--radius-full);
+            border: 1px solid;
+          }
           .tx-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
           .tx-amount { font-size: 0.9rem; font-weight: 600; font-family: var(--font-burmese); white-space: nowrap; }
           .tx-actions { display: flex; gap: 4px; }

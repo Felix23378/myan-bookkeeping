@@ -262,6 +262,7 @@ export default function Inventory() {
       note: pendingAction!.type === 'sale' ? 'Manual sale' : 'Manual stock update',
       totalCost: cost,
       dispatch,
+      wallet: state.prefs.defaultWalletId,
     });
 
     if (!result.ok) {

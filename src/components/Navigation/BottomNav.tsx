@@ -1,10 +1,11 @@
 
-import { MessageCircle, BarChart2, Settings, Package2 } from 'lucide-react';
+import { MessageCircle, BarChart2, Settings, Package2, Wallet } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const TABS = [
   { id: 'chat' as const, icon: MessageCircle, labelMy: 'Chat' },
   { id: 'dashboard' as const, icon: BarChart2, labelMy: 'စာရင်း' },
+  { id: 'wallets' as const, icon: Wallet, labelMy: 'ငွေအိတ်' },
   { id: 'inventory' as const, icon: Package2, labelMy: 'ကုန်' },
   { id: 'settings' as const, icon: Settings, labelMy: 'ဆက်တင်' },
 ];

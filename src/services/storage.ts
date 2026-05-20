@@ -34,6 +34,50 @@ export interface Transaction {
   date: string; // ISO date string YYYY-MM-DD
   createdAt: string;
   source: 'chat' | 'voice' | 'manual';
+  wallet?: string; // wallet id; undefined treated as user's default wallet
+}
+
+export interface Wallet {
+  id: string;
+  userId: string; // empty string for built-ins
+  name: string;
+  nameMy: string;
+  color: string;
+  isBuiltIn: boolean;
+  createdAt: string;
+  openingBalance: number;
+}
+
+const BUILT_IN_WALLET_DEFAULTS: Omit<Wallet, 'openingBalance'>[] = [
+  { id: 'wallet_kpay',    userId: '', name: 'KBZ Pay',  nameMy: 'KBZ Pay',  color: '#E60039', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_wavepay', userId: '', name: 'Wave Pay', nameMy: 'Wave Pay', color: '#0072CE', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_ayapay',  userId: '', name: 'AYA Pay',  nameMy: 'AYA Pay',  color: '#FF6B00', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_uabpay',  userId: '', name: 'UAB Pay',  nameMy: 'UAB Pay',  color: '#006B5B', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_cbpay',   userId: '', name: 'CB Pay',   nameMy: 'CB Pay',   color: '#7C3AED', isBuiltIn: true, createdAt: '' },
+  { id: 'wallet_cash',    userId: '', name: 'Cash',     nameMy: 'ငွေသား',    color: '#16A34A', isBuiltIn: true, createdAt: '' },
+];
+
+export const BUILT_IN_WALLETS: Wallet[] = BUILT_IN_WALLET_DEFAULTS.map(w => ({ ...w, openingBalance: 0 }));
+
+export const DEFAULT_WALLET_ID = 'wallet_kpay';
+
+export interface Transfer {
+  id: string;
+  userId: string;
+  fromWalletId: string;
+  toWalletId: string;
+  amount: number;
+  date: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface WalletCheck {
+  id: string;
+  userId: string;
+  walletId: string;
+  date: string; // YYYY-MM-DD — the activity day being reconciled
+  checkedAt: string;
 }
 
 export interface OfflineQueueItem {
@@ -71,6 +115,7 @@ export interface UserPrefs {
   customCategories: string[];
   currency: CurrencyCode;
   theme: 'dark' | 'light';
+  defaultWalletId: string;
 }
 
 const KEYS = {
@@ -80,6 +125,10 @@ const KEYS = {
   OFFLINE_QUEUE: 'mba_offline_queue',
   PRODUCTS: 'mba_products',
   STOCK_MOVEMENTS: 'mba_stock_movements',
+  WALLETS: 'mba_wallets',
+  WALLET_OVERRIDES: 'mba_wallet_overrides',
+  TRANSFERS: 'mba_transfers',
+  WALLET_CHECKS: 'mba_wallet_checks',
 };
 
 // ---- Gemini API Key ----
@@ -104,6 +153,7 @@ const defaultPrefs: UserPrefs = {
   customCategories: [],
   currency: 'MMK',
   theme: 'dark',
+  defaultWalletId: DEFAULT_WALLET_ID,
 };
 
 export const getUserPrefs = (): UserPrefs => {
@@ -206,13 +256,140 @@ export const deleteStockMovement = (userId: string, movementId: string): void =>
   localStorage.setItem(`${KEYS.STOCK_MOVEMENTS}_${userId}`, JSON.stringify(existing));
 };
 
+// ---- Wallets ----
+type BuiltInOverrides = Record<string, { openingBalance?: number }>;
+
+const getBuiltInOverrides = (userId: string): BuiltInOverrides => {
+  try {
+    const raw = localStorage.getItem(`${KEYS.WALLET_OVERRIDES}_${userId}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+};
+
+const setBuiltInOverride = (userId: string, walletId: string, patch: { openingBalance?: number }) => {
+  const overrides = getBuiltInOverrides(userId);
+  overrides[walletId] = { ...overrides[walletId], ...patch };
+  localStorage.setItem(`${KEYS.WALLET_OVERRIDES}_${userId}`, JSON.stringify(overrides));
+};
+
+export const getCustomWallets = (userId: string): Wallet[] => {
+  try {
+    const raw = localStorage.getItem(`${KEYS.WALLETS}_${userId}`);
+    const list: Wallet[] = raw ? JSON.parse(raw) : [];
+    return list.map(w => ({ ...w, openingBalance: w.openingBalance ?? 0 }));
+  } catch { return []; }
+};
+
+export const getWallets = (userId: string): Wallet[] => {
+  const overrides = getBuiltInOverrides(userId);
+  const builtIns = BUILT_IN_WALLETS.map(w => ({
+    ...w,
+    openingBalance: overrides[w.id]?.openingBalance ?? w.openingBalance,
+  }));
+  return [...builtIns, ...getCustomWallets(userId)];
+};
+
+export const saveWallet = (userId: string, wallet: Wallet): void => {
+  if (wallet.isBuiltIn) {
+    setBuiltInOverride(userId, wallet.id, { openingBalance: wallet.openingBalance });
+    return;
+  }
+  const existing = getCustomWallets(userId);
+  const idx = existing.findIndex(w => w.id === wallet.id);
+  if (idx >= 0) existing[idx] = wallet;
+  else existing.push(wallet);
+  localStorage.setItem(`${KEYS.WALLETS}_${userId}`, JSON.stringify(existing));
+};
+
+export const deleteWallet = (userId: string, walletId: string): void => {
+  const existing = getCustomWallets(userId).filter(w => w.id !== walletId);
+  localStorage.setItem(`${KEYS.WALLETS}_${userId}`, JSON.stringify(existing));
+};
+
+export const findWallet = (wallets: Wallet[], walletId: string | undefined, fallbackId: string): Wallet => {
+  return wallets.find(w => w.id === walletId)
+    ?? wallets.find(w => w.id === fallbackId)
+    ?? BUILT_IN_WALLETS[0];
+};
+
+// ---- Transfers ----
+export const getTransfers = (userId: string): Transfer[] => {
+  try {
+    const raw = localStorage.getItem(`${KEYS.TRANSFERS}_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+export const saveTransfer = (userId: string, transfer: Transfer): void => {
+  const existing = getTransfers(userId);
+  const idx = existing.findIndex(t => t.id === transfer.id);
+  if (idx >= 0) existing[idx] = transfer;
+  else existing.push(transfer);
+  localStorage.setItem(`${KEYS.TRANSFERS}_${userId}`, JSON.stringify(existing));
+};
+
+export const deleteTransfer = (userId: string, transferId: string): void => {
+  const existing = getTransfers(userId).filter(t => t.id !== transferId);
+  localStorage.setItem(`${KEYS.TRANSFERS}_${userId}`, JSON.stringify(existing));
+};
+
+// ---- Wallet Reconciliation Checks ----
+export const getWalletChecks = (userId: string): WalletCheck[] => {
+  try {
+    const raw = localStorage.getItem(`${KEYS.WALLET_CHECKS}_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+export const saveWalletCheck = (userId: string, check: WalletCheck): void => {
+  const existing = getWalletChecks(userId).filter(c => !(c.walletId === check.walletId && c.date === check.date));
+  existing.push(check);
+  localStorage.setItem(`${KEYS.WALLET_CHECKS}_${userId}`, JSON.stringify(existing));
+};
+
+export const removeWalletCheck = (userId: string, walletId: string, date: string): void => {
+  const existing = getWalletChecks(userId).filter(c => !(c.walletId === walletId && c.date === date));
+  localStorage.setItem(`${KEYS.WALLET_CHECKS}_${userId}`, JSON.stringify(existing));
+};
+
+export const computeWalletBalance = (
+  wallet: Wallet,
+  transactions: Transaction[],
+  transfers: Transfer[],
+  defaultWalletId: string,
+): { income: number; expense: number; transferIn: number; transferOut: number; balance: number } => {
+  let income = 0, expense = 0, transferIn = 0, transferOut = 0;
+  for (const tx of transactions) {
+    const id = tx.wallet || defaultWalletId;
+    if (id !== wallet.id) continue;
+    if (tx.type === 'income') income += tx.amount;
+    else expense += tx.amount;
+  }
+  for (const tr of transfers) {
+    if (tr.fromWalletId === wallet.id) transferOut += tr.amount;
+    if (tr.toWalletId === wallet.id) transferIn += tr.amount;
+  }
+  const balance = wallet.openingBalance + income - expense + transferIn - transferOut;
+  return { income, expense, transferIn, transferOut, balance };
+};
+
 // ---- Export ----
 export const exportToCSV = (userId: string): void => {
   const transactions = getTransactions(userId);
-  const header = 'Date,Type,Amount,Description,Category,Source\n';
-  const rows = transactions.map(t =>
-    `${t.date},${t.type},${t.amount},"${t.description}","${t.category}",${t.source}`
-  ).join('\n');
+  const wallets = getWallets(userId);
+  const transfers = getTransfers(userId);
+  const prefs = getUserPrefs();
+  const header = 'Date,Type,Amount,Description,Category,Wallet,FromWallet,ToWallet,Source\n';
+  const txRows = transactions.map(t => {
+    const w = findWallet(wallets, t.wallet, prefs.defaultWalletId);
+    return `${t.date},${t.type},${t.amount},"${t.description}","${t.category}","${w.name}",,,${t.source}`;
+  });
+  const trRows = transfers.map(tr => {
+    const from = findWallet(wallets, tr.fromWalletId, prefs.defaultWalletId);
+    const to = findWallet(wallets, tr.toWalletId, prefs.defaultWalletId);
+    return `${tr.date},transfer,${tr.amount},"${tr.note}","",,"${from.name}","${to.name}",manual`;
+  });
+  const rows = [...txRows, ...trRows].join('\n');
   const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
