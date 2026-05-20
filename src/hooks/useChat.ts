@@ -4,9 +4,11 @@ import { parseTransactionFromText, parseTransactionFromAudio } from '../services
 import { processParsedAction, fuzzyMatchProduct } from '../services/records';
 import {
   saveTransaction,
+  saveTransfer,
   enqueueOffline,
   type Product,
   type Transaction,
+  type Transfer,
 } from '../services/storage';
 
 function generateId(): string {
@@ -192,6 +194,24 @@ export function useChat() {
           });
           if (result.ok) currentProducts = result.products;
           else addMessage({ role: 'assistant', content: result.message });
+        }
+      }
+
+      // Wallet-to-wallet transfers
+      if (response.transfers && response.transfers.length > 0) {
+        for (const t of response.transfers) {
+          const from = validWalletIds.has(t.fromWallet) ? t.fromWallet : defaultWalletId;
+          const to = validWalletIds.has(t.toWallet) ? t.toWallet : defaultWalletId;
+          if (from === to || !t.amount || t.amount <= 0) continue;
+          const transfer: Transfer = {
+            id: generateId(), userId: state.user.id,
+            fromWalletId: from, toWalletId: to,
+            amount: t.amount, date: t.date,
+            note: t.note?.trim() || '',
+            createdAt: new Date().toISOString(),
+          };
+          saveTransfer(state.user.id, transfer);
+          dispatch({ type: 'ADD_TRANSFER', payload: transfer });
         }
       }
 

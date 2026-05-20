@@ -11,9 +11,18 @@ export interface ParsedTransaction {
   wallet?: string;
 }
 
+export interface ParsedTransfer {
+  fromWallet: string;
+  toWallet: string;
+  amount: number;
+  date: string;
+  note?: string;
+}
+
 export interface GeminiResponse {
   transactions: ParsedTransaction[];
   inventoryActions: ParsedInventoryAction[];
+  transfers?: ParsedTransfer[];
   replyMessage: string;
   needsClarification: boolean;
 }
@@ -52,6 +61,15 @@ function buildSystemPrompt(currencyCode: CurrencyCode = 'MMK', products: Product
   const walletListText = wallets.length > 0
     ? `\nAVAILABLE WALLETS / PAYMENT METHODS:\n${wallets.map(w => `- id="${w.id}" → "${w.nameMy}" (${w.name})`).join('\n')}\nDefault wallet (use when user does not mention one): id="${defaultWallet?.id ?? defaultWalletId}"`
     : '';
+
+  const transferInstructions = `
+WALLET-TO-WALLET TRANSFERS:
+- If the user describes moving money between wallets (e.g. "KPay ကနေ Wave ကို ၅သောင်း လွှဲတယ်", "Cash မှ KPay ထဲ ၁သိန်း ထည့်လိုက်တယ်", "transferred 50k from KBZ to AYA"),
+  add an entry to "transfers" with { fromWallet, toWallet, amount, date, note }.
+- These are NOT income or expense — do NOT add them to transactions[]. They only move money between wallets.
+- fromWallet and toWallet must be wallet ids from the list above.
+- If a transfer is detected, set transactions=[] and inventoryActions=[] unless the message also contains a separate normal transaction.
+`;
 
   const walletInstructions = `
 WALLET DETECTION (very important — the user uses multiple mobile wallets and forgets which one was used):
@@ -114,6 +132,7 @@ IMPORTANT RULES:
 6. CRITICAL: Use the user's EXACT description. Do NOT rephrase.
 7. The amount field must be a plain number in ${cur.code}. Do NOT convert currencies.
 ${walletInstructions}
+${transferInstructions}
 ${inventoryInstructions}
 IMPORTANT RULES FOR ANSWERING DATA QUESTIONS:
 - Analyze provided transaction history and answer clearly in Burmese
@@ -134,6 +153,9 @@ Respond ONLY with valid JSON. Default format (no inventory):
     }
   ],
   "inventoryActions": [],
+  "transfers": [
+    { "fromWallet": "wallet_kpay", "toWallet": "wallet_wavepay", "amount": 50000, "date": "YYYY-MM-DD", "note": "optional" }
+  ],
   "replyMessage": "friendly reply in Burmese",
   "needsClarification": false
 }
@@ -261,6 +283,7 @@ export const parseTransactionFromText = async (
   if (!jsonMatch) throw new Error('Invalid response from Gemini');
   const parsed = JSON.parse(jsonMatch[0]) as GeminiResponse;
   if (!parsed.inventoryActions) parsed.inventoryActions = [];
+  if (!parsed.transfers) parsed.transfers = [];
   return parsed;
 };
 
@@ -299,6 +322,7 @@ export const parseTransactionFromAudio = async (
   if (!jsonMatch) throw new Error('Invalid response from Gemini');
   const parsed = JSON.parse(jsonMatch[0]) as GeminiResponse;
   if (!parsed.inventoryActions) parsed.inventoryActions = [];
+  if (!parsed.transfers) parsed.transfers = [];
   return parsed;
 };
 

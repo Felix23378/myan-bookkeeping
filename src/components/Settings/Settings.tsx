@@ -25,6 +25,9 @@ export default function Settings() {
   const [categories, setCategories] = useState<string[]>(state.prefs.customCategories);
   const [newWalletName, setNewWalletName] = useState('');
   const [newWalletColor, setNewWalletColor] = useState(CUSTOM_WALLET_COLORS[0]);
+  const [newWalletOpening, setNewWalletOpening] = useState('');
+  const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
+  const [balanceDraft, setBalanceDraft] = useState('');
 
   const handleUpdateApiKey = async () => {
     if (!newApiKey.trim()) return;
@@ -87,10 +90,30 @@ export default function Settings() {
       color: newWalletColor,
       isBuiltIn: false,
       createdAt: new Date().toISOString(),
+      openingBalance: Number(newWalletOpening) || 0,
     };
     saveWallet(state.user.id, wallet);
     dispatch({ type: 'ADD_WALLET', payload: wallet });
     setNewWalletName('');
+    setNewWalletOpening('');
+  };
+
+  const handleStartEditBalance = (wallet: Wallet) => {
+    setEditingBalanceId(wallet.id);
+    setBalanceDraft(String(wallet.openingBalance));
+  };
+
+  const handleSaveBalance = (wallet: Wallet) => {
+    if (!state.user) return;
+    const value = Number(balanceDraft);
+    if (Number.isNaN(value) || value < 0) {
+      window.alert('ဂဏန်း မှန်ကန်စွာ ထည့်ပါ');
+      return;
+    }
+    const updated: Wallet = { ...wallet, openingBalance: value };
+    saveWallet(state.user.id, updated);
+    dispatch({ type: 'UPDATE_WALLET', payload: updated });
+    setEditingBalanceId(null);
   };
 
   const handleDeleteWallet = (wallet: Wallet) => {
@@ -241,29 +264,63 @@ export default function Settings() {
             <div className="wallet-list">
               {state.wallets.map(w => {
                 const isDefault = w.id === state.prefs.defaultWalletId;
+                const isEditing = editingBalanceId === w.id;
                 return (
                   <div key={w.id} className="wallet-row">
                     <div className="wallet-dot" style={{ background: w.color }} />
                     <div className="wallet-row-info">
-                      <span className="text-my" style={{ fontWeight: 500 }}>{w.nameMy}</span>
-                      {w.isBuiltIn && <span className="wallet-builtin-tag">built-in</span>}
+                      <div className="wallet-row-name">
+                        <span className="text-my" style={{ fontWeight: 500 }}>{w.nameMy}</span>
+                        {w.isBuiltIn && <span className="wallet-builtin-tag">built-in</span>}
+                      </div>
+                      {isEditing ? (
+                        <div className="wallet-balance-edit">
+                          <input
+                            type="number"
+                            className="input"
+                            value={balanceDraft}
+                            onChange={e => setBalanceDraft(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSaveBalance(w)}
+                            placeholder="0"
+                            autoFocus
+                            style={{ padding: '4px 8px', fontSize: '0.875rem', width: '100%' }}
+                          />
+                          <button className="wallet-balance-save" onClick={() => handleSaveBalance(w)} aria-label="Save">
+                            <CheckCircle size={14} />
+                          </button>
+                          <button className="wallet-balance-cancel" onClick={() => setEditingBalanceId(null)} aria-label="Cancel">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button className="wallet-balance-display" onClick={() => handleStartEditBalance(w)}>
+                          <span className="text-my text-muted" style={{ fontSize: '0.75rem' }}>လက်ကျန် (opening):</span>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                            {w.openingBalance.toLocaleString()}
+                          </span>
+                        </button>
+                      )}
                     </div>
-                    <button
-                      className={`wallet-star ${isDefault ? 'active' : ''}`}
-                      onClick={() => handleSetDefaultWallet(w.id)}
-                      aria-label="Set as default"
-                      title={isDefault ? 'မူရင်း' : 'မူရင်းအဖြစ်သတ်မှတ်ရန်'}
-                    >
-                      <Star size={15} fill={isDefault ? 'var(--accent)' : 'none'} />
-                    </button>
-                    {!w.isBuiltIn && (
-                      <button
-                        className="wallet-delete"
-                        onClick={() => handleDeleteWallet(w)}
-                        aria-label="Delete wallet"
-                      >
-                        <X size={14} />
-                      </button>
+                    {!isEditing && (
+                      <>
+                        <button
+                          className={`wallet-star ${isDefault ? 'active' : ''}`}
+                          onClick={() => handleSetDefaultWallet(w.id)}
+                          aria-label="Set as default"
+                          title={isDefault ? 'မူရင်း' : 'မူရင်းအဖြစ်သတ်မှတ်ရန်'}
+                        >
+                          <Star size={15} fill={isDefault ? 'var(--accent)' : 'none'} />
+                        </button>
+                        {!w.isBuiltIn && (
+                          <button
+                            className="wallet-delete"
+                            onClick={() => handleDeleteWallet(w)}
+                            aria-label="Delete wallet"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 );
@@ -273,14 +330,22 @@ export default function Settings() {
               <input
                 type="text"
                 className="input"
-                placeholder="ဥပမာ: KBZ Bank, AYA Bank..."
+                placeholder="ဥပမာ: KBZ Bank..."
                 value={newWalletName}
                 onChange={e => setNewWalletName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddWallet()}
                 style={{ flex: 1 }}
               />
+              <input
+                type="number"
+                className="input"
+                placeholder="လက်ကျန် 0"
+                value={newWalletOpening}
+                onChange={e => setNewWalletOpening(e.target.value)}
+                style={{ width: 110 }}
+              />
               <button className="btn btn-secondary" onClick={handleAddWallet} style={{ flexShrink: 0 }}>
-                <Plus size={16} /> ထည့်မည်
+                <Plus size={16} />
               </button>
             </div>
             <div className="wallet-color-row">
@@ -554,11 +619,47 @@ export default function Settings() {
           .wallet-row-info {
             flex: 1;
             display: flex;
-            align-items: center;
-            gap: 6px;
+            flex-direction: column;
+            gap: 2px;
             min-width: 0;
             font-size: 0.875rem;
           }
+          .wallet-row-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+          }
+          .wallet-balance-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            text-align: left;
+            color: var(--text-secondary);
+          }
+          .wallet-balance-display:hover { color: var(--accent); }
+          .wallet-balance-edit {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+          }
+          .wallet-balance-save, .wallet-balance-cancel {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            color: var(--text-muted);
+          }
+          .wallet-balance-save:hover { color: var(--income); background: var(--income-dim); }
+          .wallet-balance-cancel:hover { color: var(--expense); background: var(--expense-dim); }
           .wallet-builtin-tag {
             font-size: 0.625rem;
             color: var(--text-muted);

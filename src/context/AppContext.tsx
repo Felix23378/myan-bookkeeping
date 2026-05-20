@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import { getApiKey, getUserPrefs, getTransactions, getProducts, getStockMovements, getWallets, type Transaction, type UserPrefs, type Product, type StockMovement, type Wallet } from '../services/storage';
+import { getApiKey, getUserPrefs, getTransactions, getProducts, getStockMovements, getWallets, getTransfers, getWalletChecks, type Transaction, type UserPrefs, type Product, type StockMovement, type Wallet, type Transfer, type WalletCheck } from '../services/storage';
 
 // ---- State ----
 interface AppState {
@@ -13,6 +13,8 @@ interface AppState {
   products: Product[];
   stockMovements: StockMovement[];
   wallets: Wallet[];
+  transfers: Transfer[];
+  walletChecks: WalletCheck[];
   isOnline: boolean;
   activeTab: 'chat' | 'dashboard' | 'inventory' | 'wallets' | 'settings';
 }
@@ -38,6 +40,12 @@ type AppAction =
   | { type: 'ADD_WALLET'; payload: Wallet }
   | { type: 'UPDATE_WALLET'; payload: Wallet }
   | { type: 'DELETE_WALLET'; payload: string }
+  | { type: 'SET_TRANSFERS'; payload: Transfer[] }
+  | { type: 'ADD_TRANSFER'; payload: Transfer }
+  | { type: 'DELETE_TRANSFER'; payload: string }
+  | { type: 'SET_WALLET_CHECKS'; payload: WalletCheck[] }
+  | { type: 'ADD_WALLET_CHECK'; payload: WalletCheck }
+  | { type: 'REMOVE_WALLET_CHECK'; payload: { walletId: string; date: string } }
   | { type: 'SET_ONLINE'; payload: boolean }
   | { type: 'SET_TAB'; payload: AppState['activeTab'] };
 
@@ -75,6 +83,21 @@ function reducer(state: AppState, action: AppAction): AppState {
       wallets: state.wallets.map(w => w.id === action.payload.id ? action.payload : w)
     };
     case 'DELETE_WALLET': return { ...state, wallets: state.wallets.filter(w => w.id !== action.payload) };
+    case 'SET_TRANSFERS': return { ...state, transfers: action.payload };
+    case 'ADD_TRANSFER': return { ...state, transfers: [action.payload, ...state.transfers] };
+    case 'DELETE_TRANSFER': return { ...state, transfers: state.transfers.filter(t => t.id !== action.payload) };
+    case 'SET_WALLET_CHECKS': return { ...state, walletChecks: action.payload };
+    case 'ADD_WALLET_CHECK': return {
+      ...state,
+      walletChecks: [
+        ...state.walletChecks.filter(c => !(c.walletId === action.payload.walletId && c.date === action.payload.date)),
+        action.payload,
+      ],
+    };
+    case 'REMOVE_WALLET_CHECK': return {
+      ...state,
+      walletChecks: state.walletChecks.filter(c => !(c.walletId === action.payload.walletId && c.date === action.payload.date)),
+    };
     case 'SET_ONLINE': return { ...state, isOnline: action.payload };
     case 'SET_TAB': return { ...state, activeTab: action.payload };
     default: return state;
@@ -99,6 +122,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     products: [],
     stockMovements: [],
     wallets: [],
+    transfers: [],
+    walletChecks: [],
     isOnline: navigator.onLine,
     activeTab: 'chat',
   };
@@ -118,6 +143,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_PRODUCTS', payload: getProducts(user.id) });
         dispatch({ type: 'SET_STOCK_MOVEMENTS', payload: getStockMovements(user.id) });
         dispatch({ type: 'SET_WALLETS', payload: getWallets(user.id) });
+        dispatch({ type: 'SET_TRANSFERS', payload: getTransfers(user.id) });
+        dispatch({ type: 'SET_WALLET_CHECKS', payload: getWalletChecks(user.id) });
       }
     });
 
@@ -132,6 +159,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_PRODUCTS', payload: getProducts(user.id) });
         dispatch({ type: 'SET_STOCK_MOVEMENTS', payload: getStockMovements(user.id) });
         dispatch({ type: 'SET_WALLETS', payload: getWallets(user.id) });
+        dispatch({ type: 'SET_TRANSFERS', payload: getTransfers(user.id) });
+        dispatch({ type: 'SET_WALLET_CHECKS', payload: getWalletChecks(user.id) });
       }
     });
 
